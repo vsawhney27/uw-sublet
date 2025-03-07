@@ -179,7 +179,7 @@ export function SearchFilterBar({ className, onFilterChange, vertical = false }:
                       step={50}
                       value={[minPrice, maxPrice]}
                       onValueChange={handlePriceChange}
-                      className="mb-4 [&>span]:h-2 [&>span]:bg-gray-300 [&_.range]:bg-red-600 [&_[role=slider]]:h-5 [&_[role=slider]]:w-5 [&_[role=slider]]:bg-white [&_[role=slider]]:border-2 [&_[role=slider]]:border-red-600 [&_[role=slider]]:shadow-sm [&_[role=slider]]:top-1/2 [&_[role=slider]]:-translate-y-1/2"
+                      className="mb-4"
                     />
                     <div className="flex justify-between">
                       <div className="w-[45%]">
