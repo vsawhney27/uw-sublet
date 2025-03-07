@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import prisma from "@/lib/prisma"
 import { getCurrentUser, isEmailVerified } from "@/lib/auth"
+import { Prisma } from "@prisma/client"
 
 
 // Validation schema for creating/updating a listing
@@ -24,78 +25,70 @@ const listingSchema = z.object({
 })
 
 // GET all listings with optional filters
-export async function GET(req: NextRequest) {
+export async function GET(request: Request) {
   try {
-    const searchParams = req.nextUrl.searchParams
+    const { searchParams } = new URL(request.url)
+    
+    const search = searchParams.get("search")
+    const minPrice = searchParams.get("minPrice") ? Number(searchParams.get("minPrice")) : 0
+    const maxPrice = searchParams.get("maxPrice") ? Number(searchParams.get("maxPrice")) : 10000
+    const bedrooms = searchParams.get("bedrooms")
+    const availableFrom = searchParams.get("availableFrom")
+    const availableUntil = searchParams.get("availableUntil")
+    const amenities = searchParams.get("amenities")?.split(",") || []
+    const limit = searchParams.get("limit") ? Number(searchParams.get("limit")) : undefined
 
-    // Parse filters
-    const minPrice = searchParams.get("minPrice") ? Number(searchParams.get("minPrice")) : undefined
-    const maxPrice = searchParams.get("maxPrice") ? Number(searchParams.get("maxPrice")) : undefined
-    const bedrooms = searchParams.get("bedrooms") ? Number(searchParams.get("bedrooms")) : undefined
-    const availableFrom = searchParams.get("availableFrom") || undefined
-    const availableUntil = searchParams.get("availableUntil") || undefined
-    const amenities = searchParams.get("amenities")?.split(",") || undefined
-    const search = searchParams.get("search") || undefined
-
-    // Build where clause
-    const where: any = {
-      published: true,
+    const where: Prisma.ListingWhereInput = {
+      price: {
+        gte: minPrice,
+        lte: maxPrice
+      },
+      ...(bedrooms && bedrooms !== "any" && {
+        bedrooms: bedrooms === "4" ? { gte: 4 } : parseInt(bedrooms)
+      }),
+      ...(availableFrom && {
+        availableFrom: { lte: new Date(availableFrom) }
+      }),
+      ...(availableUntil && {
+        availableUntil: { gte: new Date(availableUntil) }
+      }),
+      ...(amenities.length > 0 && {
+        amenities: { hasEvery: amenities }
+      }),
+      ...(search && {
+        OR: [
+          { title: { contains: search, mode: "insensitive" } },
+          { description: { contains: search, mode: "insensitive" } },
+          { address: { contains: search, mode: "insensitive" } }
+        ]
+      })
     }
 
-    if (minPrice !== undefined) {
-      where.price = { ...where.price, gte: minPrice }
-    }
-
-    if (maxPrice !== undefined) {
-      where.price = { ...where.price, lte: maxPrice }
-    }
-
-    if (bedrooms !== undefined) {
-      where.bedrooms = bedrooms
-    }
-
-    if (availableFrom) {
-      where.availableUntil = { gte: new Date(availableFrom) }
-    }
-
-    if (availableUntil) {
-      where.availableFrom = { lte: new Date(availableUntil) }
-    }
-
-    if (amenities && amenities.length > 0) {
-      where.amenities = { hasEvery: amenities }
-    }
-
-    if (search) {
-      where.OR = [
-        { title: { contains: search, mode: "insensitive" } },
-        { description: { contains: search, mode: "insensitive" } },
-        { address: { contains: search, mode: "insensitive" } },
-      ]
-    }
-
-    // Get listings
     const listings = await prisma.listing.findMany({
       where,
+      take: limit,
       include: {
         user: {
           select: {
             id: true,
             name: true,
             email: true,
-            image: true,
-          },
-        },
+            image: true
+          }
+        }
       },
       orderBy: {
-        createdAt: "desc",
-      },
+        createdAt: "desc"
+      }
     })
 
     return NextResponse.json({ listings })
   } catch (error) {
-    console.error("Get listings error:", error)
-    return NextResponse.json({ error: "Something went wrong" }, { status: 500 })
+    console.error("Error fetching listings:", error)
+    return NextResponse.json(
+      { error: "Failed to fetch listings" },
+      { status: 500 }
+    )
   }
 }
 

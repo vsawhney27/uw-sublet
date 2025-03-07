@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -17,62 +14,63 @@ model User {
   password          String
   emailVerified     DateTime?
   verificationToken String?
+  tokenExpiry       DateTime? @map("tokenExpiry")
   image             String?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
   role              Role      @default(USER)
   listings          Listing[]
-  sentMessages      Message[] @relation("SentMessages")
   receivedMessages  Message[] @relation("ReceivedMessages")
+  sentMessages      Message[] @relation("SentMessages")
   reports           Report[]  @relation("ReportedBy")
 }
 
 model Listing {
-  id            String    @id @default(cuid())
-  title         String
-  description   String
-  price         Float
-  address       String
-  bedrooms      Int
-  bathrooms     Int
-  availableFrom DateTime
+  id             String    @id @default(cuid())
+  title          String
+  description    String
+  price          Float
+  address        String
+  bedrooms       Int
+  bathrooms      Int
+  availableFrom  DateTime
   availableUntil DateTime
-  amenities     String[]
-  images        String[]
-  published     Boolean   @default(true)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  userId        String
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  messages      Message[]
-  reports       Report[]
+  amenities      String[]
+  images         String[]
+  published      Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages       Message[]
+  reports        Report[]
 }
 
 model Message {
-  id        String   @id @default(cuid())
-  content   String
-  read      Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  senderId  String
-  sender    User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  content    String
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  senderId   String
   receiverId String
-  receiver  User     @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
-  listingId String?
-  listing   Listing? @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  listingId  String?
+  listing    Listing? @relation(fields: [listingId], references: [id])
+  receiver   User     @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  sender     User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
 }
 
 model Report {
-  id        String   @id @default(cuid())
-  reason    String
-  details   String
-  status    ReportStatus @default(PENDING)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String       @id @default(cuid())
+  reason     String
+  details    String
+  status     ReportStatus @default(PENDING)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
   reporterId String
-  reporter  User     @relation("ReportedBy", fields: [reporterId], references: [id], onDelete: Cascade)
-  listingId String
-  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  listingId  String
+  listing    Listing      @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  reporter   User         @relation("ReportedBy", fields: [reporterId], references: [id], onDelete: Cascade)
 }
 
 enum Role {
@@ -85,4 +83,3 @@ enum ReportStatus {
   RESOLVED
   DISMISSED
 }
-

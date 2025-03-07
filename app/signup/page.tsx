@@ -1,193 +1,203 @@
 "use client"
 
-import type React from "react"
 import { useState } from "react"
-import Link from "next/link"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { CheckCircle, AlertCircle } from "lucide-react"
+import { Eye, EyeOff } from "lucide-react"
 
 export default function SignUp() {
   const router = useRouter()
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
-  const [name, setName] = useState("")
-  const [step, setStep] = useState(1)
-  const [verificationSent, setVerificationSent] = useState(false)
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    password: "",
+  })
   const [error, setError] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [passwordStrength, setPasswordStrength] = useState({
+    score: 0,
+    label: "Too Weak",
+    color: "bg-red-500",
+  })
 
-  const handleEmailSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+  const calculatePasswordStrength = (password: string) => {
+    let score = 0
+    
+    // Length check (up to 2 points)
+    if (password.length >= 8) score += 1
+    if (password.length >= 12) score += 1
+    
+    // Number check
+    if (/[0-9]/.test(password)) score += 1
+    
+    // Special character check
+    if (/[^a-zA-Z0-9]/.test(password)) score += 1
 
-    // Validate email is a wisc.edu address
-    if (!email.endsWith("@wisc.edu")) {
-      setError("You must use a valid @wisc.edu email address")
-      return
+    const strengthMap = {
+      0: { label: "Too Weak", color: "bg-red-500" },
+      1: { label: "Weak", color: "bg-orange-500" },
+      2: { label: "Medium", color: "bg-yellow-500" },
+      3: { label: "Strong", color: "bg-green-500" },
+      4: { label: "Very Strong", color: "bg-green-600" },
     }
 
-    // Move to step 2
-    setStep(2)
-    setError("")
+    setPasswordStrength({
+      score,
+      label: strengthMap[Math.min(score, 4) as keyof typeof strengthMap].label,
+      color: strengthMap[Math.min(score, 4) as keyof typeof strengthMap].color,
+    })
   }
 
-  const handleSignUp = async (e: React.FormEvent) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    setFormData((prev) => ({ ...prev, [name]: value }))
+    
+    if (name === "password") {
+      calculatePasswordStrength(value)
+    }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
-    setIsLoading(true)
-
-    // Validate passwords match
-    if (password !== confirmPassword) {
-      setError("Passwords do not match")
-      setIsLoading(false)
-      return
-    }
+    setLoading(true)
 
     try {
-      console.log("Sending signup request...")
-      const response = await fetch("/api/auth/signup", {
+      const res = await fetch("/api/auth/signup", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name,
-          email,
-          password,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
       })
 
-      const data = await response.json()
-      console.log("Signup response:", data)
+      const data = await res.json()
 
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to create account")
+      if (!res.ok) {
+        throw new Error(data.error || "Something went wrong")
       }
 
-      // Show success message and wait for 3 seconds before redirecting
-      setVerificationSent(true)
-      setError("")
-      
-      setTimeout(() => {
-        router.push("/login")
-      }, 3000)
-    } catch (error) {
-      console.error("Signup error:", error)
-      setError(error instanceof Error ? error.message : "Something went wrong")
-      setVerificationSent(false)
+      router.push("/login?message=Check your email to verify your account")
+    } catch (err: any) {
+      setError(err.message)
     } finally {
-      setIsLoading(false)
+      setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <div className="flex justify-center mb-4">
-            <Link href="/" className="text-2xl font-bold text-red-700">
-              BadgerSublets
-            </Link>
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      <div className="flex-1 flex flex-col items-center justify-center px-4">
+        <div className="max-w-md w-full space-y-8">
+          <div>
+            <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+              Create your account
+            </h2>
           </div>
-          <CardTitle className="text-2xl font-bold text-center">Create an account</CardTitle>
-          <CardDescription className="text-center">
-            {step === 1 ? "First, enter your UW-Madison email" : "Complete your account setup"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {error && (
-            <Alert variant="destructive" className="mb-4">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
 
-          {verificationSent && (
-            <Alert className="mb-4 border-green-500 text-green-700 bg-green-50">
-              <CheckCircle className="h-4 w-4" />
-              <AlertDescription>
-                Account created! Please check your email to verify your account. Redirecting to login page...
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {step === 1 && (
-            <form onSubmit={handleEmailSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">UW-Madison Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="your.name@wisc.edu"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-                <p className="text-sm text-gray-500">
-                  You must use your @wisc.edu email to verify you're a UW student
-                </p>
-              </div>
-              <Button type="submit" className="w-full bg-red-700 hover:bg-red-800">
-                Continue
-              </Button>
-            </form>
-          )}
-
-          {step === 2 && (
-            <form onSubmit={handleSignUp} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Full Name</Label>
+          <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+            <div className="rounded-md shadow-sm space-y-4">
+              <div>
+                <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+                  Name
+                </label>
                 <Input
                   id="name"
+                  name="name"
                   type="text"
-                  placeholder="John Doe"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
                   required
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  className="mt-1"
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                  UW-Madison Email
+                </label>
                 <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  id="email"
+                  name="email"
+                  type="email"
                   required
-                  minLength={8}
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  className="mt-1"
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm Password</Label>
-                <Input
-                  id="confirmPassword"
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
-                  minLength={8}
-                />
+
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                  Password
+                </label>
+                <div className="relative mt-1">
+                  <Input
+                    id="password"
+                    name="password"
+                    type={showPassword ? "text" : "password"}
+                    required
+                    value={formData.password}
+                    onChange={handleInputChange}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-5 w-5 text-gray-400" />
+                    ) : (
+                      <Eye className="h-5 w-5 text-gray-400" />
+                    )}
+                  </button>
+                </div>
+                
+                {/* Password strength indicator */}
+                <div className="mt-2">
+                  <div className="h-2 rounded-full bg-gray-200">
+                    <div
+                      className={`h-full rounded-full ${passwordStrength.color}`}
+                      style={{ width: `${(passwordStrength.score / 4) * 100}%` }}
+                    />
+                  </div>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Password strength: {passwordStrength.label}
+                  </p>
+                </div>
+
+                {/* Password requirements */}
+                <ul className="text-sm text-gray-600 mt-2 space-y-1">
+                  <li>• At least 8 characters</li>
+                  <li>• At least one number</li>
+                  <li>• At least one special character</li>
+                </ul>
               </div>
-              <Button type="submit" className="w-full bg-red-700 hover:bg-red-800" disabled={isLoading}>
-                {isLoading ? "Creating account..." : "Create Account"}
-              </Button>
-            </form>
-          )}
-        </CardContent>
-        <CardFooter className="flex flex-col space-y-2">
-          <div className="text-sm text-center text-gray-500">
+            </div>
+
+            {error && (
+              <div className="text-red-600 text-sm text-center">{error}</div>
+            )}
+
+            <Button
+              type="submit"
+              className="w-full bg-red-700 hover:bg-red-800"
+              disabled={loading}
+            >
+              {loading ? "Creating account..." : "Sign Up"}
+            </Button>
+          </form>
+
+          <p className="text-center text-sm text-gray-600">
             Already have an account?{" "}
-            <Link href="/login" className="text-red-700 hover:underline">
+            <Link href="/login" className="text-red-700 hover:text-red-800">
               Log in
             </Link>
-          </div>
-        </CardFooter>
-      </Card>
+          </p>
+        </div>
+      </div>
     </div>
   )
 }

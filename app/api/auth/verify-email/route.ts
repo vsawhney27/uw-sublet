@@ -1,22 +1,31 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
-import { generateToken, setAuthCookie } from "@/lib/auth"
+import { User } from "@prisma/client"
 
-export async function GET(req: NextRequest) {
+export async function POST(req: Request) {
   try {
-    const token = req.nextUrl.searchParams.get("token")
+    const { token } = await req.json()
 
     if (!token) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 400 })
+      return NextResponse.json({ error: "No token provided" }, { status: 400 })
     }
 
-    // Find user with this verification token
+    // Find user with matching verification token
     const user = await prisma.user.findFirst({
-      where: { verificationToken: token },
-    })
+      where: { 
+        verificationToken: token,
+      }
+    }) as User | null
 
     if (!user) {
-      return NextResponse.json({ error: "Invalid or expired token" }, { status: 400 })
+      return NextResponse.json({ error: "Invalid verification token" }, { status: 400 })
+    }
+
+    // Check if token has expired
+    if (user.tokenExpiry && user.tokenExpiry < new Date()) {
+      return NextResponse.json({ 
+        error: "Verification link has expired. Please sign up again to receive a new verification email." 
+      }, { status: 400 })
     }
 
     // Update user to mark email as verified
@@ -24,20 +33,12 @@ export async function GET(req: NextRequest) {
       where: { id: user.id },
       data: {
         emailVerified: new Date(),
-        verificationToken: null,
+        verificationToken: null, // Clear the token
+        tokenExpiry: null, // Clear the expiry
       },
     })
 
-    // Generate JWT token
-    const jwtToken = generateToken({ id: user.id, email: user.email })
-
-    // Create response
-    const response = NextResponse.redirect(new URL("/", req.url))
-
-    // Set auth cookie
-    setAuthCookie(response, jwtToken)
-
-    return response
+    return NextResponse.json({ message: "Email verified successfully" })
   } catch (error) {
     console.error("Email verification error:", error)
     return NextResponse.json({ error: "Something went wrong" }, { status: 500 })

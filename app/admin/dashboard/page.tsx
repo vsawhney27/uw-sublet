@@ -119,5 +119,12 @@ export default function AdminDashboard() {
         const reportsData = await reportsResponse.json()
         
         if (reportsResponse.ok) {
-          setReports(reportsData.reports)\
+          setReports(reportsData.reports)
+        }
+      }
+    } catch (error) {
+      console.error("Error updating report:", error)
+    }
+  }
+}
 

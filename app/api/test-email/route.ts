@@ -3,6 +3,8 @@ import { sendEmail } from "@/lib/email"
 
 export async function GET() {
   console.log("Testing email sending...")
+  console.log("RESEND_API_KEY present:", !!process.env.RESEND_API_KEY)
+  console.log("EMAIL_FROM:", process.env.EMAIL_FROM)
   
   try {
     const result = await sendEmail({
@@ -20,11 +22,11 @@ export async function GET() {
     }
 
     return NextResponse.json({ 
-      message: "Test email sent successfully",
-      data: result.data
+      message: "Test email sent",
+      result: result
     })
   } catch (error) {
     console.error("Test email error:", error)
-    return NextResponse.json({ error: "Failed to send test email" }, { status: 500 })
+    return NextResponse.json({ error: String(error) }, { status: 500 })
   }
 } 

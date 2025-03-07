@@ -6,15 +6,14 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { AlertCircle, Loader2 } from "lucide-react"
+import { AlertCircle, Loader2, MessageCircle } from "lucide-react"
 
-interface MessageFormProps {
-  receiverId: string
-  listingId?: string
-  onSuccess?: () => void
+export interface MessageFormProps {
+  recipientId: string
+  listingId: string
 }
 
-export function MessageForm({ receiverId, listingId, onSuccess }: MessageFormProps) {
+export function MessageForm({ recipientId, listingId }: MessageFormProps) {
   const [content, setContent] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -38,7 +37,7 @@ export function MessageForm({ receiverId, listingId, onSuccess }: MessageFormPro
         },
         body: JSON.stringify({
           content,
-          receiverId,
+          receiverId: recipientId,
           listingId,
         }),
       })
@@ -50,9 +49,6 @@ export function MessageForm({ receiverId, listingId, onSuccess }: MessageFormPro
       }
 
       setContent("")
-      if (onSuccess) {
-        onSuccess()
-      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred")
     } finally {
@@ -84,7 +80,9 @@ export function MessageForm({ receiverId, listingId, onSuccess }: MessageFormPro
             Sending...
           </>
         ) : (
-          "Send Message"
+          <>
+            <MessageCircle className="mr-2 h-4 w-4" /> Message
+          </>
         )}
       </Button>
     </form>

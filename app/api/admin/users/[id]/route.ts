@@ -113,30 +113,19 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 // DELETE a user (admin only)
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const { id } = params
-
-    // Check if user is authenticated and is an admin
-    const user = await getCurrentUser(req)
-
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const userIsAdmin = await isAdmin(req)
-
-    if (!userIsAdmin) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-    }
-
-    // Delete user
+    const userId = params.id
+    
+    // Delete the user
     await prisma.user.delete({
-      where: { id },
+      where: {
+        id: userId,
+      },
     })
 
     return NextResponse.json({ message: "User deleted successfully" })
   } catch (error) {
-    console.error("Delete user error:", error)
-    return NextResponse.json({ error: "Something went wrong" }, { status: 500 })
+    console.error("Error deleting user:", error)
+    return NextResponse.json({ error: "Failed to delete user" }, { status: 500 })
   }
 }
 

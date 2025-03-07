@@ -1,81 +1,58 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
 import prisma from "@/lib/prisma"
-import { getCurrentUser } from "@/lib/auth"
 
-// PUT mark a message as read
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(
+  req: Request,
+  { params }: { params: { id: string } }
+) {
   try {
-    const { id } = params
+    const session = await getServerSession(authOptions)
 
-    // Check if user is authenticated
-    const user = await getCurrentUser(req)
-
-    if (!user) {
+    if (!session?.user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Get the message
-    const message = await prisma.message.findUnique({
-      where: { id },
-    })
-
-    if (!message) {
-      return NextResponse.json({ error: "Message not found" }, { status: 404 })
-    }
-
-    // Check if user is the receiver
-    if (message.receiverId !== user.id) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-    }
-
-    // Mark message as read
-    const updatedMessage = await prisma.message.update({
-      where: { id },
-      data: { read: true },
-    })
-
-    return NextResponse.json({ message: updatedMessage })
-  } catch (error) {
-    console.error("Mark message as read error:", error)
-    return NextResponse.json({ error: "Something went wrong" }, { status: 500 })
-  }
-}
-
-// DELETE a message
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
-  try {
     const { id } = params
 
-    // Check if user is authenticated
-    const user = await getCurrentUser(req)
-
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    // Get the message
-    const message = await prisma.message.findUnique({
-      where: { id },
+    // Get messages between current user and specified user
+    const messages = await prisma.message.findMany({
+      where: {
+        OR: [
+          { AND: [{ senderId: session.user.id }, { receiverId: id }] },
+          { AND: [{ senderId: id }, { receiverId: session.user.id }] }
+        ]
+      },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: "asc"
+      }
     })
 
-    if (!message) {
-      return NextResponse.json({ error: "Message not found" }, { status: 404 })
-    }
-
-    // Check if user is the sender
-    if (message.senderId !== user.id) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-    }
-
-    // Delete message
-    await prisma.message.delete({
-      where: { id },
+    // Mark messages as read
+    await prisma.message.updateMany({
+      where: {
+        senderId: id,
+        receiverId: session.user.id,
+        read: false
+      },
+      data: {
+        read: true
+      }
     })
 
-    return NextResponse.json({ message: "Message deleted successfully" })
+    return NextResponse.json(messages)
   } catch (error) {
-    console.error("Delete message error:", error)
+    console.error("Error fetching messages:", error)
     return NextResponse.json({ error: "Something went wrong" }, { status: 500 })
   }
-}
-
+} 

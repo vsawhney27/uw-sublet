@@ -2,6 +2,8 @@ import { type NextRequest, NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
 import { getCurrentUser, isAdmin } from "@/lib/auth"
 
+export const dynamic = 'force-dynamic'
+
 // GET all users (admin only)
 export async function GET(req: NextRequest) {
   try {

@@ -53,9 +53,9 @@ export function SearchFilterBar({ className, onFilterChange, vertical = false }:
     const params = new URLSearchParams()
 
     if (search) params.set("search", search)
-    if (minPrice > 0) params.set("minPrice", minPrice.toString())
-    if (maxPrice < 3000) params.set("maxPrice", maxPrice.toString())
-    if (bedrooms) params.set("bedrooms", bedrooms)
+    params.set("minPrice", minPrice.toString())
+    params.set("maxPrice", maxPrice.toString())
+    if (bedrooms && bedrooms !== "any") params.set("bedrooms", bedrooms)
     if (availableFrom) params.set("availableFrom", availableFrom)
     if (availableUntil) params.set("availableUntil", availableUntil)
     if (selectedAmenities.length > 0) params.set("amenities", selectedAmenities.join(","))
@@ -100,8 +100,25 @@ export function SearchFilterBar({ className, onFilterChange, vertical = false }:
 
   // Handle price range change
   const handlePriceChange = (values: number[]) => {
-    setMinPrice(values[0])
-    setMaxPrice(values[1])
+    const [min, max] = values
+    if (min <= max) {
+      setMinPrice(min)
+      setMaxPrice(max)
+    }
+  }
+
+  // Handle input price change
+  const handleInputPriceChange = (type: 'min' | 'max', value: string) => {
+    const numValue = Number(value)
+    if (type === 'min') {
+      if (!isNaN(numValue) && numValue >= 0 && numValue <= maxPrice) {
+        setMinPrice(numValue)
+      }
+    } else {
+      if (!isNaN(numValue) && numValue >= minPrice && numValue <= 10000) {
+        setMaxPrice(numValue)
+      }
+    }
   }
 
   // Determine if any filters are active
@@ -152,32 +169,40 @@ export function SearchFilterBar({ className, onFilterChange, vertical = false }:
                 </AccordionTrigger>
                 <AccordionContent>
                   <div className="space-y-4 pt-2">
+                    <div className="flex justify-between mb-2">
+                      <span className="text-sm text-gray-600">${minPrice}</span>
+                      <span className="text-sm text-gray-600">${maxPrice}</span>
+                    </div>
                     <Slider
-                      defaultValue={[minPrice, maxPrice]}
                       min={0}
                       max={3000}
                       step={50}
                       value={[minPrice, maxPrice]}
                       onValueChange={handlePriceChange}
+                      className="mb-4 [&>span]:h-2 [&>span]:bg-gray-300 [&_.range]:bg-red-600 [&_[role=slider]]:h-5 [&_[role=slider]]:w-5 [&_[role=slider]]:bg-white [&_[role=slider]]:border-2 [&_[role=slider]]:border-red-600 [&_[role=slider]]:shadow-sm [&_[role=slider]]:top-1/2 [&_[role=slider]]:-translate-y-1/2"
                     />
                     <div className="flex justify-between">
                       <div className="w-[45%]">
-                        <Label htmlFor="min-price">Min</Label>
+                        <Label htmlFor="min-price">Min Price</Label>
                         <Input
                           id="min-price"
                           type="number"
+                          min={0}
+                          max={maxPrice}
                           value={minPrice}
-                          onChange={(e) => setMinPrice(Number(e.target.value))}
+                          onChange={(e) => handleInputPriceChange('min', e.target.value)}
                           className="mt-1"
                         />
                       </div>
                       <div className="w-[45%]">
-                        <Label htmlFor="max-price">Max</Label>
+                        <Label htmlFor="max-price">Max Price</Label>
                         <Input
                           id="max-price"
                           type="number"
+                          min={minPrice}
+                          max={10000}
                           value={maxPrice}
-                          onChange={(e) => setMaxPrice(Number(e.target.value))}
+                          onChange={(e) => handleInputPriceChange('max', e.target.value)}
                           className="mt-1"
                         />
                       </div>
