@@ -18,7 +18,7 @@ const defaultCenter = {
   lng: -89.4125, // UW-Madison longitude
 }
 
-const libraries = ["places", "geocoding"]
+const libraries: ("places" | "geocoding")[] = ["places", "geocoding"]
 
 export function Map({ address, className }: MapProps) {
   const [map, setMap] = useState<google.maps.Map | null>(null)
@@ -29,14 +29,15 @@ export function Map({ address, className }: MapProps) {
   const onLoad = useCallback(async (map: google.maps.Map) => {
     setIsLoading(true)
     setError(null)
-    const geocoder = new google.maps.Geocoder()
-
-    // Add "Madison, WI" to the address if not present
-    const fullAddress = address.toLowerCase().includes("madison")
-      ? address
-      : `${address}, Madison, WI`
-
+    
     try {
+      const geocoder = new google.maps.Geocoder()
+
+      // Add "Madison, WI" to the address if not present
+      const fullAddress = address.toLowerCase().includes("madison")
+        ? address
+        : `${address}, Madison, WI`
+
       const result = await geocoder.geocode({ address: fullAddress })
 
       if (result.results[0]) {
@@ -80,7 +81,7 @@ export function Map({ address, className }: MapProps) {
     <div className={className}>
       <LoadScript 
         googleMapsApiKey={apiKey}
-        libraries={libraries as any}
+        libraries={libraries}
       >
         <div className="relative h-full">
           <GoogleMap
@@ -104,7 +105,7 @@ export function Map({ address, className }: MapProps) {
               {error}
             </div>
           )}
-          {isLoading && !error && (
+          {isLoading && (
             <div className="absolute inset-0 flex items-center justify-center bg-white/80">
               <div className="text-gray-500">Loading map...</div>
             </div>
