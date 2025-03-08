@@ -16,7 +16,7 @@ export async function POST(req: Request) {
     const { to, subject, message, listingTitle } = await req.json()
 
     const emailResponse = await resend.emails.send({
-      from: "Badger Sublets <notifications@badgersublets.com>",
+      from: "Badger Sublets <notifications@badger-sublets.com>",
       to: [to],
       subject: subject,
       html: `

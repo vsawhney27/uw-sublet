@@ -8,8 +8,14 @@ import { SearchFilterBar } from "@/components/search-filter-bar"
 import { ListingCard } from "@/components/listing-card"
 import type { Listing, User } from "@prisma/client"
 
-type ListingWithUser = Listing & {
+type ListingWithUser = Omit<Listing, 'availableFrom' | 'availableUntil' | 'createdAt'> & {
   user: Pick<User, "id" | "name" | "email" | "image">
+  availableFrom: string
+  availableUntil: string
+  createdAt: string
+  isRoomSublet?: boolean
+  totalRoommates?: number
+  roommateGenders?: string
 }
 
 export default function Home() {
@@ -114,7 +120,24 @@ export default function Home() {
                   <div className="col-span-3 text-center py-12">Loading listings...</div>
                 ) : featuredListings.length > 0 ? (
                   featuredListings.map((listing) => (
-                    <ListingCard key={listing.id} listing={listing} />
+                    <ListingCard
+                      key={listing.id}
+                      id={listing.id}
+                      title={listing.title}
+                      description={listing.description}
+                      address={listing.address}
+                      price={listing.price}
+                      bedrooms={listing.bedrooms}
+                      bathrooms={listing.bathrooms}
+                      amenities={listing.amenities}
+                      availableFrom={listing.availableFrom}
+                      availableUntil={listing.availableUntil}
+                      images={listing.images}
+                      isRoomSublet={listing.isRoomSublet}
+                      totalRoommates={listing.totalRoommates}
+                      roommateGenders={listing.roommateGenders}
+                      createdAt={listing.createdAt}
+                    />
                   ))
                 ) : (
                   <div className="col-span-3 text-center py-12">
@@ -168,7 +191,7 @@ export default function Home() {
             </div>
             <div>
               <h4 className="font-semibold mb-4">Contact</h4>
-              <p className="text-gray-300">Questions or feedback? Reach out to us at support@badgersublets.com</p>
+              <p className="text-gray-300">Questions or feedback? Reach out to us at support@badger-sublets.com</p>
             </div>
           </div>
           <div className="border-t border-gray-700 mt-8 pt-8 text-center text-gray-300">

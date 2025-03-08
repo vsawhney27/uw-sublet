@@ -6,8 +6,11 @@ import { SearchFilterBar } from "@/components/search-filter-bar"
 import { ListingCard } from "@/components/listing-card"
 import type { Listing, User } from "@prisma/client"
 
-type ListingWithUser = Listing & {
+type ListingWithUser = Omit<Listing, 'availableFrom' | 'availableUntil' | 'createdAt'> & {
   user: Pick<User, "id" | "name" | "email" | "image">
+  availableFrom: string
+  availableUntil: string
+  createdAt: string
 }
 
 function ListingsContent() {
@@ -46,7 +49,9 @@ function ListingsContent() {
         <div className="container mx-auto px-4 py-8">
           <div className="mb-8">
             <h1 className="text-3xl font-bold mb-4">Available Sublets</h1>
-            <SearchFilterBar onFilterChange={handleFilterChange} />
+            <div className="lg:hidden">
+              <SearchFilterBar onFilterChange={handleFilterChange} />
+            </div>
           </div>
           <div className="text-center py-12">Loading listings...</div>
         </div>
@@ -59,11 +64,13 @@ function ListingsContent() {
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-4">Available Sublets</h1>
-          <SearchFilterBar onFilterChange={handleFilterChange} />
+          <div className="lg:hidden">
+            <SearchFilterBar onFilterChange={handleFilterChange} />
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          <div className="lg:col-span-1">
+          <div className="hidden lg:block lg:col-span-1">
             <SearchFilterBar vertical onFilterChange={handleFilterChange} />
           </div>
 
@@ -76,7 +83,24 @@ function ListingsContent() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {listings.map((listing) => (
-                  <ListingCard key={listing.id} listing={listing} />
+                  <ListingCard
+                    key={listing.id}
+                    id={listing.id}
+                    title={listing.title}
+                    description={listing.description}
+                    address={listing.address}
+                    price={listing.price}
+                    bedrooms={listing.bedrooms}
+                    bathrooms={listing.bathrooms}
+                    amenities={listing.amenities}
+                    availableFrom={listing.availableFrom}
+                    availableUntil={listing.availableUntil}
+                    images={listing.images}
+                    isRoomSublet={listing.isRoomSublet}
+                    totalRoommates={listing.totalRoommates || undefined}
+                    roommateGenders={listing.roommateGenders || undefined}
+                    createdAt={listing.createdAt}
+                  />
                 ))}
               </div>
             )}

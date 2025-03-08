@@ -68,16 +68,16 @@ export async function sendVerificationEmail(email: string, token: string) {
 
   return sendEmail({
     to: email,
-    subject: "Verify your BadgerSublets Account",
+    subject: "Verify your Badger Sublets Account",
     text: `Please verify your email by clicking this link: ${verificationUrl}`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background-color: #c5050c; padding: 20px; text-align: center;">
-          <h1 style="color: white; margin: 0;">Welcome to BadgerSublets</h1>
+          <h1 style="color: white; margin: 0;">Welcome to Badger Sublets</h1>
         </div>
         <div style="padding: 20px; border: 1px solid #e0e0e0; border-top: none;">
           <h2>One Last Step!</h2>
-          <p>Thanks for signing up for BadgerSublets. To start browsing and posting sublets, please verify your email address.</p>
+          <p>Thanks for signing up for Badger Sublets. To start browsing and posting sublets, please verify your email address.</p>
           <div style="text-align: center; margin: 30px 0;">
             <a href="${verificationUrl}" 
                style="background-color: #c5050c; 
@@ -94,7 +94,7 @@ export async function sendVerificationEmail(email: string, token: string) {
           <p style="color: #666; font-size: 14px;">If you didn't create an account, you can safely ignore this email.</p>
         </div>
         <div style="text-align: center; padding: 20px; color: #666; font-size: 12px;">
-          <p>© ${new Date().getFullYear()} BadgerSublets</p>
+          <p>© ${new Date().getFullYear()} Badger Sublets</p>
           <p>A safe way to find subleases in Madison.</p>
           <p>Not affiliated with the University of Wisconsin-Madison.</p>
         </div>

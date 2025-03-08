@@ -12,7 +12,7 @@ const sendTestEmail = async () => {
     const msg = {
         to: "vsawhney@wisc.edu", // Replace with your real email
         from: process.env.EMAIL_FROM as string,
-        subject: "Test Email from BadgerSublets",
+        subject: "Test Email from Badger Sublets",
         text: "This is a test email to check if SendGrid is working.",
     };
 

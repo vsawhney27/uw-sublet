@@ -120,7 +120,7 @@ export function ReportForm({ listingId, onSuccess }: ReportFormProps) {
       </Button>
 
       <p className="text-xs text-gray-500 text-center">
-        Thank you for helping keep BadgerSublets safe. We'll review your report as soon as possible.
+        Thank you for helping keep Badger Sublets safe. We'll review your report as soon as possible.
       </p>
     </form>
   )

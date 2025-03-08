@@ -82,7 +82,15 @@ export async function GET(request: Request) {
       }
     })
 
-    return NextResponse.json({ listings })
+    // Format dates as ISO strings
+    const formattedListings = listings.map(listing => ({
+      ...listing,
+      availableFrom: listing.availableFrom.toISOString(),
+      availableUntil: listing.availableUntil.toISOString(),
+      createdAt: listing.createdAt.toISOString()
+    }))
+
+    return NextResponse.json({ listings: formattedListings })
   } catch (error) {
     console.error("Error fetching listings:", error)
     return NextResponse.json(

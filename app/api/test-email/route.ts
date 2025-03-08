@@ -9,7 +9,7 @@ export async function GET() {
   try {
     const result = await sendEmail({
       to: "vsawhney@wisc.edu", // Now we can send to any email since we have a verified domain
-      subject: "Test Email from BadgerSublets",
+      subject: "Test Email from Badger Sublets",
       text: "This is a test email to verify the email sending functionality is working.",
       html: "<h1>Test Email</h1><p>This is a test email to verify the email sending functionality is working.</p>",
     })

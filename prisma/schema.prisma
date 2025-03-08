@@ -44,6 +44,13 @@ model Listing {
   user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   messages       Message[]
   reports        Report[]
+
+  // Room sublet specific fields
+  isRoomSublet    Boolean @default(false)
+  totalRoommates  Int?
+  roomDetails     String?
+  roommateGenders String? // "all-female" | "all-male" | "mixed"
+  sharedSpaces    String?
 }
 
 model Message {
