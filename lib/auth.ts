@@ -2,9 +2,20 @@ import { hash, compare } from "bcryptjs"
 import { sign, verify } from "jsonwebtoken"
 import type { NextRequest, NextResponse } from "next/server"
 import prisma from "./prisma"
-import { NextAuthOptions } from "next-auth"
+import { NextAuthOptions, DefaultSession } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 import bcrypt from "bcryptjs"
+
+declare module "next-auth" {
+  interface Session extends DefaultSession {
+    user: {
+      id: string
+      email: string
+      name: string | null
+      image: string | null
+    } & DefaultSession["user"]
+  }
+}
 
 // Hash password
 export async function hashPassword(password: string): Promise<string> {
@@ -115,6 +126,7 @@ export const authOptions: NextAuthOptions = {
             name: true,
             password: true,
             emailVerified: true,
+            image: true,
           }
         })
 
@@ -139,6 +151,7 @@ export const authOptions: NextAuthOptions = {
           id: user.id,
           email: user.email,
           name: user.name,
+          image: user.image,
         }
       }
     })
@@ -152,19 +165,24 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.id = user.id
         token.name = user.name
+        token.email = user.email
+        token.picture = user.image
       }
       return token
     },
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string
-        session.user.name = token.name as string
+        session.user.name = token.name as string || null
+        session.user.email = token.email as string
+        session.user.image = token.picture as string || null
       }
       return session
     }
   },
   session: {
-    strategy: "jwt"
+    strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 days
   }
 }
 

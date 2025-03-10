@@ -9,11 +9,12 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle, Loader2, MessageCircle } from "lucide-react"
 
 export interface MessageFormProps {
-  recipientId: string
+  receiverId: string
   listingId: string
+  onSuccess?: () => void
 }
 
-export function MessageForm({ recipientId, listingId }: MessageFormProps) {
+export function MessageForm({ receiverId, listingId, onSuccess }: MessageFormProps) {
   const [content, setContent] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -37,20 +38,27 @@ export function MessageForm({ recipientId, listingId }: MessageFormProps) {
         },
         body: JSON.stringify({
           content,
-          receiverId: recipientId,
+          receiverId,
           listingId,
         }),
       })
 
       const data = await response.json()
+      console.log("Message API response:", data)
 
       if (!response.ok) {
         throw new Error(data.error || "Failed to send message")
       }
 
       setContent("")
+      onSuccess?.()
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred")
+      console.error("Error sending message:", err)
+      if (err instanceof Error) {
+        setError(err.message)
+      } else {
+        setError("An unexpected error occurred while sending the message")
+      }
     } finally {
       setIsLoading(false)
     }

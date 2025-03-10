@@ -60,6 +60,31 @@ export function ListingDetail({ listing, currentUser, onFavorite, isFavorite = f
 
   const isOwner = currentUser?.id === user.id
 
+  const handleSendMessage = async (message: string) => {
+    try {
+      const response = await fetch("/api/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          content: message,
+          receiverId: user.id,
+          listingId: id,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to send message")
+      }
+
+      return Promise.resolve()
+    } catch (error) {
+      console.error("Error sending message:", error)
+      throw error
+    }
+  }
+
   return (
     <div className="grid md:grid-cols-3 gap-8">
       {/* Main Content */}
@@ -132,7 +157,11 @@ export function ListingDetail({ listing, currentUser, onFavorite, isFavorite = f
             </div>
           </div>
           <div className="mt-6 space-y-4">
-            <MessageForm recipientId={user.id} listingId={id} />
+            <MessageForm 
+              receiverId={user.id}
+              listingId={id}
+              placeholder="Write your message to the host..."
+            />
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t" />
@@ -141,7 +170,10 @@ export function ListingDetail({ listing, currentUser, onFavorite, isFavorite = f
                 <span className="bg-white px-2 text-gray-500">Or</span>
               </div>
             </div>
-            <EmailForm recipientEmail={user.email} listingTitle={title} />
+            <EmailForm 
+              receiverEmail={user.email} 
+              listingTitle={title}
+            />
           </div>
         </Card>
       </div>
@@ -152,7 +184,11 @@ export function ListingDetail({ listing, currentUser, onFavorite, isFavorite = f
           <DialogHeader>
             <DialogTitle>Send Message to {user.name}</DialogTitle>
           </DialogHeader>
-          <MessageForm receiverId={user.id} listingId={id} onSuccess={() => setShowMessageForm(false)} />
+          <MessageForm 
+            receiverId={user.id}
+            listingId={id}
+            placeholder="Write your message..."
+          />
         </DialogContent>
       </Dialog>
 
@@ -165,7 +201,6 @@ export function ListingDetail({ listing, currentUser, onFavorite, isFavorite = f
           <EmailForm 
             receiverEmail={user.email} 
             listingTitle={title}
-            onSuccess={() => setShowEmailForm(false)} 
           />
         </DialogContent>
       </Dialog>

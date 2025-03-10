@@ -10,7 +10,11 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
-import { Search, MapPin, Calendar, DollarSign, Filter, X } from "lucide-react"
+import { Search, MapPin, Calendar as CalendarIcon, DollarSign, Filter, X } from "lucide-react"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Calendar } from "@/components/ui/calendar"
+import { cn } from "@/lib/utils"
+import { format } from "date-fns"
 
 const AMENITIES = [
   "Furnished",
@@ -218,9 +222,12 @@ export function SearchFilterBar({ className, onFilterChange, vertical = false }:
                   </div>
                 </AccordionTrigger>
                 <AccordionContent>
-                  <Select value={bedrooms} onValueChange={setBedrooms}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Any" />
+                  <Select
+                    value={bedrooms}
+                    onValueChange={(value) => setBedrooms(value)}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Number of bedrooms" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="any">Any</SelectItem>
@@ -237,7 +244,7 @@ export function SearchFilterBar({ className, onFilterChange, vertical = false }:
               <AccordionItem value="dates">
                 <AccordionTrigger className="text-sm font-medium py-2">
                   <div className="flex items-center">
-                    <Calendar className="mr-2 h-4 w-4" /> Availability
+                    <CalendarIcon className="mr-2 h-4 w-4" /> Availability
                   </div>
                 </AccordionTrigger>
                 <AccordionContent>
@@ -302,19 +309,22 @@ export function SearchFilterBar({ className, onFilterChange, vertical = false }:
   return (
     <div className={`bg-white p-4 rounded-lg shadow ${className}`}>
       <div className="flex flex-col md:flex-row gap-4">
-        <div className="relative flex-grow">
+        <div className="relative flex-grow md:w-1/3">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 h-4 w-4" />
           <Input
-            className="pl-10"
+            className="pl-10 w-full"
             placeholder="Search by keyword, location..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
 
-        <Select value={bedrooms} onValueChange={setBedrooms}>
-          <SelectTrigger className="w-full md:w-40">
-            <SelectValue placeholder="Bedrooms" />
+        <Select
+          value={bedrooms}
+          onValueChange={(value) => setBedrooms(value)}
+        >
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="Number of rooms" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="any">Any</SelectItem>
@@ -330,29 +340,27 @@ export function SearchFilterBar({ className, onFilterChange, vertical = false }:
           <Input
             type="date"
             placeholder="Available From"
-            className="w-full md:w-40"
+            className="w-[160px] text-gray-900"
             value={availableFrom}
             onChange={(e) => setAvailableFrom(e.target.value)}
           />
           <Input
             type="date"
             placeholder="Available Until"
-            className="w-full md:w-40"
+            className="w-[160px] text-gray-900"
             value={availableUntil}
             onChange={(e) => setAvailableUntil(e.target.value)}
           />
         </div>
 
-        <div className="flex gap-2">
-          <Button className="bg-red-700 hover:bg-red-800 flex-grow" onClick={applyFilters}>
-            Search
+        <Button className="bg-red-700 hover:bg-red-800 flex-grow" onClick={applyFilters}>
+          Search
+        </Button>
+        {hasActiveFilters && (
+          <Button variant="outline" onClick={resetFilters}>
+            <X className="h-4 w-4" />
           </Button>
-          {hasActiveFilters && (
-            <Button variant="outline" onClick={resetFilters}>
-              <X className="h-4 w-4" />
-            </Button>
-          )}
-        </div>
+        )}
       </div>
     </div>
   )

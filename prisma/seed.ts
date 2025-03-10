@@ -1,21 +1,38 @@
 import { PrismaClient } from '@prisma/client'
+import { hash } from 'bcryptjs'
+
 const prisma = new PrismaClient()
 
 async function main() {
-  // Create a test user
-  const user = await prisma.user.upsert({
+  // Create your user account
+  const yourPassword = await hash("password123", 12) // You can change this password
+  const yourUser = await prisma.user.upsert({
+    where: { email: 'vsawhney@wisc.edu' },
+    update: {},
+    create: {
+      email: 'vsawhney@wisc.edu',
+      name: 'Veer Sawhney',
+      password: yourPassword,
+      emailVerified: new Date('2025-03-07T23:19:33.407Z'),
+      role: 'USER',
+    },
+  })
+
+  // Create test user account
+  const testPassword = await hash("password123", 12)
+  const testUser = await prisma.user.upsert({
     where: { email: 'test@wisc.edu' },
     update: {},
     create: {
       email: 'test@wisc.edu',
       name: 'Test User',
-      password: 'hashed_password', // In production, this should be properly hashed
-      emailVerified: new Date(),
+      password: testPassword,
+      emailVerified: new Date('2025-03-07T23:19:33.407Z'),
       role: 'USER',
     },
   })
 
-  // Create some test listings
+  // Create test listings
   const listings = await Promise.all([
     prisma.listing.create({
       data: {
@@ -27,9 +44,12 @@ async function main() {
         bathrooms: 1,
         availableFrom: new Date('2024-05-15'),
         availableUntil: new Date('2024-08-15'),
-        amenities: ['Washer/Dryer', 'Parking', 'Air Conditioning'],
-        images: ['/placeholder.svg'],
-        userId: user.id,
+        amenities: ['Washer/Dryer', 'Parking', 'AC', 'Dishwasher'],
+        images: [
+          'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?q=80&w=2070&auto=format&fit=crop',
+          'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?q=80&w=2080&auto=format&fit=crop'
+        ],
+        userId: testUser.id,
       },
     }),
     prisma.listing.create({
@@ -42,9 +62,11 @@ async function main() {
         bathrooms: 1,
         availableFrom: new Date('2024-06-01'),
         availableUntil: new Date('2024-08-31'),
-        amenities: ['Heat Included', 'Water Included', 'Internet'],
-        images: ['/placeholder.svg'],
-        userId: user.id,
+        amenities: ['Utilities Included', 'Furnished', 'AC'],
+        images: [
+          'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?q=80&w=2070&auto=format&fit=crop'
+        ],
+        userId: testUser.id,
       },
     }),
     prisma.listing.create({
@@ -57,17 +79,20 @@ async function main() {
         bathrooms: 2,
         availableFrom: new Date('2024-05-20'),
         availableUntil: new Date('2024-08-20'),
-        amenities: ['Furnished', 'Parking', 'Laundry'],
-        images: ['/placeholder.svg'],
+        amenities: ['Washer/Dryer', 'Parking', 'AC', 'Furnished'],
+        images: [
+          'https://images.unsplash.com/photo-1554995207-c18c203602cb?q=80&w=2070&auto=format&fit=crop',
+          'https://images.unsplash.com/photo-1486304873000-235643847519?q=80&w=2089&auto=format&fit=crop'
+        ],
+        userId: testUser.id,
         isRoomSublet: true,
         totalRoommates: 3,
         roommateGenders: 'mixed',
-        userId: user.id,
       },
     }),
   ])
 
-  console.log({ user, listings })
+  console.log({ yourUser, testUser, listings })
 }
 
 main()

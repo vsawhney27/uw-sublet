@@ -92,22 +92,46 @@ export async function GET(req: NextRequest) {
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions)
+    console.log("Session data:", {
+      user: session?.user,
+      email: session?.user?.email,
+      id: session?.user?.id
+    })
 
     if (!session?.user?.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      console.error("No user email found in session")
+      return NextResponse.json({ error: "User not found in session" }, { status: 401 })
     }
 
     const body = await req.json()
+    console.log("Received message request:", { 
+      content: body.content,
+      receiverId: body.receiverId,
+      listingId: body.listingId,
+      senderEmail: session.user.email 
+    })
+
     const result = messageSchema.safeParse(body)
 
     if (!result.success) {
+      console.error("Validation error:", result.error)
       return NextResponse.json(
         { error: result.error.errors[0].message },
         { status: 400 }
       )
     }
 
-    const { content, receiverId } = result.data
+    const { content, receiverId, listingId } = result.data
+
+    // Get sender by email
+    const sender = await prisma.user.findUnique({
+      where: { email: session.user.email }
+    })
+
+    if (!sender) {
+      console.error("Sender not found:", session.user.email)
+      return NextResponse.json({ error: "Sender not found" }, { status: 404 })
+    }
 
     // Check if receiver exists
     const receiver = await prisma.user.findUnique({
@@ -115,30 +139,63 @@ export async function POST(req: Request) {
     })
 
     if (!receiver) {
+      console.error("Receiver not found:", receiverId)
       return NextResponse.json({ error: "Receiver not found" }, { status: 404 })
     }
 
+    // Check if listing exists if listingId is provided
+    if (listingId) {
+      const listing = await prisma.listing.findUnique({
+        where: { id: listingId }
+      })
+      
+      if (!listing) {
+        console.error("Listing not found:", listingId)
+        return NextResponse.json({ error: "Listing not found" }, { status: 404 })
+      }
+    }
+
     // Create message
-    const message = await prisma.message.create({
-      data: {
+    try {
+      console.log("Attempting to create message with data:", {
         content,
-        senderId: session.user.id,
+        senderId: sender.id,
         receiverId,
-      },
-      include: {
-        sender: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
+        listingId
+      })
+
+      const message = await prisma.message.create({
+        data: {
+          content,
+          senderId: sender.id,
+          receiverId,
+          listingId,
+        },
+        include: {
+          sender: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            }
           }
         }
-      }
-    })
+      })
 
-    return NextResponse.json(message)
+      console.log("Message created successfully:", message)
+      return NextResponse.json(message)
+    } catch (dbError) {
+      console.error("Database error creating message:", dbError)
+      if (dbError instanceof Error) {
+        return NextResponse.json({ 
+          error: "Failed to create message in database",
+          details: dbError.message 
+        }, { status: 500 })
+      }
+      return NextResponse.json({ error: "Failed to create message in database" }, { status: 500 })
+    }
   } catch (error) {
-    console.error("Error sending message:", error)
+    console.error("Error in message POST handler:", error)
     return NextResponse.json({ error: "Something went wrong" }, { status: 500 })
   }
 }

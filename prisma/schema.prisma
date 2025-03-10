@@ -62,7 +62,7 @@ model Message {
   senderId   String
   receiverId String
   listingId  String?
-  listing    Listing? @relation(fields: [listingId], references: [id])
+  listing    Listing? @relation(fields: [listingId], references: [id], onDelete: Cascade)
   receiver   User     @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
   sender     User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
 }
