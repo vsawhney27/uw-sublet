@@ -96,69 +96,47 @@ export function ListingCard({
           </div>
         </div>
         <CardContent className="p-4">
-          <div className="space-y-2">
-            <div className="flex justify-between items-start">
-              <div>
-                <h3 className="font-semibold truncate">{title}</h3>
-                <p className="text-sm text-gray-500 truncate">{address}</p>
-              </div>
-              <div className="text-right">
-                <p className="font-semibold">${price}/mo</p>
-                <p className="text-sm text-gray-500">
-                  {formattedAvailableFrom} - {formattedAvailableUntil}
-                </p>
-              </div>
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              <h3 className="text-lg font-semibold text-gray-900 truncate">{title}</h3>
+              <p className="text-sm text-gray-500 truncate">{address}</p>
             </div>
+            <div className="flex-shrink-0">
+              <span className="text-lg font-bold text-red-700">${price}</span>
+              <span className="text-sm text-gray-500">/month</span>
+            </div>
+          </div>
 
-            {/* Room Sublet Badge */}
+          <div className="mt-2 flex flex-wrap gap-2">
+            <span className="text-sm text-gray-600">
+              {bedrooms} {bedrooms === 1 ? 'bedroom' : 'bedrooms'}
+            </span>
+            <span className="text-sm text-gray-600">
+              {bathrooms} {bathrooms === 1 ? 'bathroom' : 'bathrooms'}
+            </span>
             {isRoomSublet && (
-              <div className="flex items-center gap-2 mt-2">
-                <span className="bg-red-100 text-red-700 text-xs px-2 py-1 rounded-full">
-                  Room Sublet
-                </span>
-                {roommateGenders && (
-                  <span className="bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded-full">
-                    {roommateGenders.replace('-', ' ').replace(/(^\w|\s\w)/g, l => l.toUpperCase())} House
-                  </span>
-                )}
-              </div>
+              <span className="text-sm text-red-700 font-medium">Room Sublet</span>
             )}
+          </div>
 
-            {!compact && (
-              <>
-                <p className="text-sm text-gray-600 line-clamp-2">{description}</p>
-                
-                <div className="flex items-center gap-4 text-sm text-gray-500">
-                  <div className="flex items-center gap-1">
-                    <Bed className="h-4 w-4" />
-                    <span>{isRoomSublet ? `Room in ${bedrooms}BR` : `${bedrooms} ${bedrooms === 1 ? 'bed' : 'beds'}`}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Bath className="h-4 w-4" />
-                    <span>{bathrooms} {bathrooms === 1 ? 'bath' : 'baths'}</span>
-                  </div>
-                  {isRoomSublet && totalRoommates && (
-                    <div className="flex items-center gap-1">
-                      <Users className="h-4 w-4" />
-                      <span>{totalRoommates} roommate{totalRoommates !== 1 ? 's' : ''}</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex flex-wrap gap-1">
-                  {amenities.slice(0, 3).map((amenity) => (
-                    <Badge key={amenity} variant="outline" className="text-xs">
-                      {amenity}
-                    </Badge>
-                  ))}
-                  {amenities.length > 3 && (
-                    <Badge variant="outline" className="text-xs">
-                      +{amenities.length - 3} more
-                    </Badge>
-                  )}
-                </div>
-              </>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {amenities?.slice(0, 3).map((amenity, index) => (
+              <span
+                key={index}
+                className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800"
+              >
+                {amenity}
+              </span>
+            ))}
+            {amenities && amenities.length > 3 && (
+              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                +{amenities.length - 3} more
+              </span>
             )}
+          </div>
+
+          <div className="mt-4 text-sm text-gray-500">
+            <span>{getTimeAgo(createdAt)}</span>
           </div>
         </CardContent>
       </Link>
