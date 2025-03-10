@@ -1,6 +1,7 @@
 import type React from "react"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
+import Script from "next/script"
 import "./globals.css"
 import { Providers } from "./providers"
 import { Header } from "@/components/header"
@@ -18,8 +19,18 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY?.trim()
+
   return (
     <html lang="en">
+      <head>
+        {apiKey && (
+          <Script
+            src={`https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places,geocoding`}
+            strategy="beforeInteractive"
+          />
+        )}
+      </head>
       <body className={inter.className}>
         <Providers>
           <div className="min-h-screen flex flex-col">

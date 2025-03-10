@@ -60,31 +60,6 @@ export function ListingDetail({ listing, currentUser, onFavorite, isFavorite = f
 
   const isOwner = currentUser?.id === user.id
 
-  const handleSendMessage = async (message: string) => {
-    try {
-      const response = await fetch("/api/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          content: message,
-          receiverId: user.id,
-          listingId: id,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to send message")
-      }
-
-      return Promise.resolve()
-    } catch (error) {
-      console.error("Error sending message:", error)
-      throw error
-    }
-  }
-
   return (
     <div className="grid md:grid-cols-3 gap-8">
       {/* Main Content */}
