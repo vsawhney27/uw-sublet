@@ -56,21 +56,9 @@ export function setAuthCookie(response: NextResponse, token: string): void {
 
 // Get current user from request
 export async function getCurrentUser(req: NextRequest) {
-  const token = req.cookies.get("auth_token")?.value
-
-  if (!token) {
-    return null
-  }
-
-  const decoded = verifyToken(token)
-
-  if (!decoded) {
-    return null
-  }
-
   try {
     const user = await prisma.user.findUnique({
-      where: { id: decoded.id },
+      where: { email: req.headers.get("email") as string },
       select: {
         id: true,
         email: true,
@@ -161,20 +149,20 @@ export const authOptions: NextAuthOptions = {
     error: "/login",
   },
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, account }) {
       if (user) {
         token.id = user.id
-        token.name = user.name
         token.email = user.email
+        token.name = user.name
         token.picture = user.image
       }
       return token
     },
     async session({ session, token }) {
-      if (session.user) {
+      if (token && session.user) {
         session.user.id = token.id as string
-        session.user.name = token.name as string || null
         session.user.email = token.email as string
+        session.user.name = token.name as string || null
         session.user.image = token.picture as string || null
       }
       return session
@@ -183,6 +171,8 @@ export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
-  }
+  },
+  secret: process.env.NEXTAUTH_SECRET,
+  debug: process.env.NODE_ENV === "development",
 }
 

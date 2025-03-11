@@ -1,12 +1,13 @@
 "use client"
 
 import type React from "react"
-
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useSession } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { CheckCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useToast } from "@/components/ui/use-toast"
 
 interface MessageFormProps {
   receiverId: string
@@ -15,11 +16,23 @@ interface MessageFormProps {
 }
 
 export function MessageForm({ receiverId, listingId, placeholder = "Write your message..." }: MessageFormProps) {
+  const { data: session, status } = useSession()
+  const { toast } = useToast()
   const [message, setMessage] = useState("")
   const [isSending, setIsSending] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
 
+  // Debug session status
+  useEffect(() => {
+    console.log("Session status:", status)
+    console.log("Session data:", session)
+  }, [session, status])
+
   const sendMessage = async (content: string): Promise<void> => {
+    if (!session?.user) {
+      throw new Error("You must be logged in to send messages")
+    }
+
     const response = await fetch("/api/messages", {
       method: "POST",
       headers: {
@@ -44,19 +57,55 @@ export function MessageForm({ receiverId, listingId, placeholder = "Write your m
     e.preventDefault()
     if (!message.trim()) return
 
+    if (!session?.user) {
+      toast({
+        title: "Not logged in",
+        description: "You must be logged in to send messages",
+        variant: "destructive",
+      })
+      return
+    }
+
     setIsSending(true)
     try {
       await sendMessage(message)
       setMessage("")
       setShowSuccess(true)
-      // Wait for the success state to be set before starting the timeout
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      setShowSuccess(false)
+      toast({
+        title: "Message sent",
+        description: "Your message has been sent successfully",
+      })
+      setTimeout(() => {
+        setShowSuccess(false)
+      }, 2000)
     } catch (error) {
       console.error("Failed to send message:", error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to send message",
+        variant: "destructive",
+      })
     } finally {
       setIsSending(false)
     }
+  }
+
+  // Show loading state while checking session
+  if (status === "loading") {
+    return (
+      <div className="p-4 text-center bg-gray-100 rounded-lg">
+        <p>Loading...</p>
+      </div>
+    )
+  }
+
+  // Show login message if not authenticated
+  if (status === "unauthenticated" || !session?.user) {
+    return (
+      <div className="p-4 text-center bg-gray-100 rounded-lg">
+        <p>Please log in to send messages</p>
+      </div>
+    )
   }
 
   return (

@@ -91,62 +91,63 @@ export async function GET(req: NextRequest) {
 // POST create a new message
 export async function POST(req: Request) {
   try {
+    // Get session and validate user
     const session = await getServerSession(authOptions)
-    console.log("Session data:", {
-      user: session?.user,
-      email: session?.user?.email,
-      id: session?.user?.id
-    })
-
+    
     if (!session?.user?.email) {
-      console.error("No user email found in session")
-      return NextResponse.json({ error: "User not found in session" }, { status: 401 })
+      console.error("No authenticated user found")
+      return NextResponse.json({ error: "You must be logged in to send messages" }, { status: 401 })
     }
 
+    // Parse and validate request body
     const body = await req.json()
-    console.log("Received message request:", { 
-      content: body.content,
-      receiverId: body.receiverId,
-      listingId: body.listingId,
-      senderEmail: session.user.email 
-    })
-
     const result = messageSchema.safeParse(body)
 
     if (!result.success) {
-      console.error("Validation error:", result.error)
-      return NextResponse.json(
-        { error: result.error.errors[0].message },
-        { status: 400 }
-      )
+      const errorMessage = result.error.errors[0].message
+      console.error("Message validation error:", errorMessage)
+      return NextResponse.json({ error: errorMessage }, { status: 400 })
     }
 
     const { content, receiverId, listingId } = result.data
 
-    // Get sender by email
+    // Get sender
     const sender = await prisma.user.findUnique({
-      where: { email: session.user.email }
+      where: { email: session.user.email },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        emailVerified: true,
+      }
     })
 
     if (!sender) {
       console.error("Sender not found:", session.user.email)
-      return NextResponse.json({ error: "Sender not found" }, { status: 404 })
+      return NextResponse.json({ error: "User account not found" }, { status: 404 })
+    }
+
+    if (!sender.emailVerified) {
+      console.error("Sender email not verified:", session.user.email)
+      return NextResponse.json({ error: "Please verify your email before sending messages" }, { status: 403 })
     }
 
     // Check if receiver exists
     const receiver = await prisma.user.findUnique({
-      where: { id: receiverId }
+      where: { id: receiverId },
+      select: { id: true, email: true }
     })
 
     if (!receiver) {
       console.error("Receiver not found:", receiverId)
-      return NextResponse.json({ error: "Receiver not found" }, { status: 404 })
+      return NextResponse.json({ error: "Recipient not found" }, { status: 404 })
     }
 
     // Check if listing exists if listingId is provided
     if (listingId) {
       const listing = await prisma.listing.findUnique({
-        where: { id: listingId }
+        where: { id: listingId },
+        select: { id: true }
       })
       
       if (!listing) {
@@ -156,47 +157,47 @@ export async function POST(req: Request) {
     }
 
     // Create message
-    try {
-      console.log("Attempting to create message with data:", {
+    const message = await prisma.message.create({
+      data: {
         content,
         senderId: sender.id,
         receiverId,
-        listingId
-      })
-
-      const message = await prisma.message.create({
-        data: {
-          content,
-          senderId: sender.id,
-          receiverId,
-          listingId,
+        listingId,
+      },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            image: true,
+          }
         },
-        include: {
-          sender: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            }
+        receiver: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            image: true,
           }
         }
-      })
-
-      console.log("Message created successfully:", message)
-      return NextResponse.json(message)
-    } catch (dbError) {
-      console.error("Database error creating message:", dbError)
-      if (dbError instanceof Error) {
-        return NextResponse.json({ 
-          error: "Failed to create message in database",
-          details: dbError.message 
-        }, { status: 500 })
       }
-      return NextResponse.json({ error: "Failed to create message in database" }, { status: 500 })
-    }
+    })
+
+    console.log("Message sent successfully:", {
+      messageId: message.id,
+      sender: message.sender.email,
+      receiver: message.receiver.email,
+      listingId
+    })
+
+    return NextResponse.json(message)
   } catch (error) {
     console.error("Error in message POST handler:", error)
-    return NextResponse.json({ error: "Something went wrong" }, { status: 500 })
+    return NextResponse.json(
+      { error: "Failed to send message. Please try again." },
+      { status: 500 }
+    )
   }
 }
 

@@ -6,191 +6,122 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useSession } from "next-auth/react"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
+import prisma from "@/lib/prisma"
+import Link from "next/link"
+import { format } from "date-fns"
+import { redirect } from "next/navigation"
 
-export default function AccountPage() {
-  const router = useRouter()
-  const { data: session, status } = useSession()
-  const [user, setUser] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [isEditing, setIsEditing] = useState(false)
-  const [editedName, setEditedName] = useState("")
+export default async function AccountPage() {
+  const session = await getServerSession(authOptions)
 
-  useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push("/login")
-    }
-  }, [status, router])
-
-  useEffect(() => {
-    const fetchUser = async () => {
-      if (session?.user?.email) {
-        try {
-          const response = await fetch("/api/user")
-          const data = await response.json()
-          setUser(data)
-          setEditedName(data.name || "")
-        } catch (error) {
-          console.error("Error fetching user:", error)
-        }
-      }
-      setLoading(false)
-    }
-
-    fetchUser()
-  }, [session])
-
-  const handleUpdateName = async () => {
-    try {
-      const response = await fetch("/api/user", {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ name: editedName }),
-      })
-
-      if (response.ok) {
-        setUser({ ...user, name: editedName })
-        setIsEditing(false)
-      }
-    } catch (error) {
-      console.error("Error updating name:", error)
-    }
+  if (!session?.user) {
+    redirect("/login")
   }
 
-  if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>
-  }
+  const listings = await prisma.listing.findMany({
+    where: {
+      userId: session.user.id
+    },
+    orderBy: {
+      createdAt: "desc"
+    }
+  })
 
-  if (!user) {
-    return null
-  }
+  const drafts = listings.filter(listing => listing.isDraft)
+  const published = listings.filter(listing => !listing.isDraft)
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12">
-      <div className="container mx-auto px-4">
-        <h1 className="text-3xl font-bold mb-8">Account Settings</h1>
-        
-        <div className="grid gap-6 md:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Profile Information</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Name</label>
-                  <div className="flex gap-2">
-                    {isEditing ? (
-                      <>
-                        <Input
-                          value={editedName}
-                          onChange={(e) => setEditedName(e.target.value)}
-                          placeholder="Enter your name"
-                        />
-                        <Button onClick={handleUpdateName} className="bg-red-700 hover:bg-red-800">
-                          Save
-                        </Button>
-                        <Button variant="outline" onClick={() => setIsEditing(false)}>
-                          Cancel
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <Input value={user.name || ""} disabled />
-                        <Button variant="outline" onClick={() => setIsEditing(true)}>
-                          Edit
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Email</label>
-                  <Input value={user.email} disabled />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Account Status</label>
-                  <Input 
-                    value={user.emailVerified ? "Verified" : "Unverified"} 
-                    disabled 
-                    className={user.emailVerified ? "text-green-600" : "text-red-600"}
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>My Listings</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <p className="text-gray-600">
-                  You have {user.listings?.length || 0} active listings
-                </p>
-                <Button 
-                  onClick={() => router.push("/create-listing")}
-                  className="w-full bg-red-700 hover:bg-red-800"
-                >
-                  Create New Listing
-                </Button>
-                <Button 
-                  onClick={() => router.push("/listings?filter=my")}
-                  variant="outline"
-                  className="w-full"
-                >
-                  View My Listings
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Messages</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <p className="text-gray-600">
-                  You have {user.receivedMessages?.length || 0} unread messages
-                </p>
-                <Button 
-                  onClick={() => router.push("/messages")}
-                  variant="outline"
-                  className="w-full"
-                >
-                  View Messages
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Account Actions</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <Button 
-                  onClick={() => router.push("/change-password")}
-                  variant="outline"
-                  className="w-full"
-                >
-                  Change Password
-                </Button>
-                <Button 
-                  onClick={() => router.push("/delete-account")}
-                  variant="destructive"
-                  className="w-full"
-                >
-                  Delete Account
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+    <div className="min-h-screen bg-gray-50 py-12 px-4">
+      <div className="container mx-auto max-w-4xl">
+        <div className="mb-8 flex justify-between items-center">
+          <h1 className="text-2xl font-bold">My Listings</h1>
+          <Link href="/create-listing">
+            <Button className="bg-red-700 hover:bg-red-800">
+              Create New Listing
+            </Button>
+          </Link>
         </div>
+
+        {drafts.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-xl font-semibold mb-4">Drafts</h2>
+            <div className="grid gap-4">
+              {drafts.map((listing) => (
+                <Card key={listing.id}>
+                  <CardContent className="p-6">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <Link href={`/listing/${listing.id}`} className="text-lg font-semibold hover:text-red-700">
+                          {listing.title}
+                        </Link>
+                        <p className="text-gray-500 text-sm mt-1">
+                          Created {format(new Date(listing.createdAt), "MMM d, yyyy")}
+                        </p>
+                        <p className="text-gray-700 mt-2">${listing.price}/month • {listing.bedrooms} BR</p>
+                      </div>
+                      <div className="space-x-2">
+                        <Link href={`/listing/${listing.id}/edit`}>
+                          <Button variant="outline" size="sm">Edit</Button>
+                        </Link>
+                        <Link href={`/listing/${listing.id}/delete`}>
+                          <Button variant="destructive" size="sm">Delete</Button>
+                        </Link>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {published.length > 0 && (
+          <div>
+            <h2 className="text-xl font-semibold mb-4">Published Listings</h2>
+            <div className="grid gap-4">
+              {published.map((listing) => (
+                <Card key={listing.id}>
+                  <CardContent className="p-6">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <Link href={`/listing/${listing.id}`} className="text-lg font-semibold hover:text-red-700">
+                          {listing.title}
+                        </Link>
+                        <p className="text-gray-500 text-sm mt-1">
+                          Published {format(new Date(listing.createdAt), "MMM d, yyyy")}
+                        </p>
+                        <p className="text-gray-700 mt-2">${listing.price}/month • {listing.bedrooms} BR</p>
+                      </div>
+                      <div className="space-x-2">
+                        <Link href={`/listing/${listing.id}/edit`}>
+                          <Button variant="outline" size="sm">Edit</Button>
+                        </Link>
+                        <Link href={`/listing/${listing.id}/delete`}>
+                          <Button variant="destructive" size="sm">Delete</Button>
+                        </Link>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {listings.length === 0 && (
+          <Card>
+            <CardContent className="p-6 text-center">
+              <p className="text-gray-500">You haven't created any listings yet.</p>
+              <Link href="/create-listing" className="mt-4 inline-block">
+                <Button className="bg-red-700 hover:bg-red-800">
+                  Create Your First Listing
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   )

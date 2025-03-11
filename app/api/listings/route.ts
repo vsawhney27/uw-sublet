@@ -1,7 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import prisma from "@/lib/prisma"
-import { getCurrentUser, isEmailVerified } from "@/lib/auth"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
 import { Prisma } from "@prisma/client"
 
 
@@ -22,12 +23,14 @@ const listingSchema = z.object({
   amenities: z.array(z.string()),
   images: z.array(z.string()).optional(),
   published: z.boolean().optional(),
+  isDraft: z.boolean().optional(),
 })
 
 // GET all listings with optional filters
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
+    const session = await getServerSession(authOptions)
     
     const search = searchParams.get("search")
     const minPrice = searchParams.get("minPrice") ? Number(searchParams.get("minPrice")) : 0
@@ -37,8 +40,11 @@ export async function GET(request: Request) {
     const availableUntil = searchParams.get("availableUntil")
     const amenities = searchParams.get("amenities")?.split(",") || []
     const limit = searchParams.get("limit") ? Number(searchParams.get("limit")) : undefined
+    const showDrafts = searchParams.get("showDrafts") === "true"
+    const userOnly = searchParams.get("userOnly") === "true"
 
-    const where: Prisma.ListingWhereInput = {
+    // Base where clause
+    let where: Prisma.ListingWhereInput = {
       price: {
         gte: minPrice,
         lte: maxPrice
@@ -64,6 +70,20 @@ export async function GET(request: Request) {
       })
     }
 
+    // Handle visibility based on authentication and request type
+    if (userOnly && session?.user) {
+      // Show all user's listings including drafts
+      where.userId = session.user.id;
+    } else {
+      // Show published listings for everyone, and drafts only for the owner
+      where.OR = [
+        { published: true, isDraft: false },
+        ...(session?.user ? [{ userId: session.user.id, isDraft: true }] : [])
+      ];
+    }
+
+    console.log("Fetching listings with where clause:", where);
+
     const listings = await prisma.listing.findMany({
       where,
       take: limit,
@@ -81,6 +101,8 @@ export async function GET(request: Request) {
         createdAt: "desc"
       }
     })
+
+    console.log(`Found ${listings.length} listings`);
 
     // Format dates as ISO strings
     const formattedListings = listings.map(listing => ({
@@ -103,17 +125,10 @@ export async function GET(request: Request) {
 // POST create a new listing
 export async function POST(req: NextRequest) {
   try {
-    // Check if user is authenticated and email is verified
-    const user = await getCurrentUser(req)
+    const session = await getServerSession(authOptions)
 
-    if (!user) {
+    if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const isVerified = await isEmailVerified(req)
-
-    if (!isVerified) {
-      return NextResponse.json({ error: "Email not verified" }, { status: 403 })
     }
 
     const body = await req.json()
@@ -136,7 +151,16 @@ export async function POST(req: NextRequest) {
       amenities,
       images = [],
       published = true,
+      isDraft = false,
     } = result.data
+
+    // Ensure published and isDraft aren't both true
+    if (published && isDraft) {
+      return NextResponse.json(
+        { error: "A listing cannot be both published and a draft" },
+        { status: 400 }
+      )
+    }
 
     // Create listing
     const listing = await prisma.listing.create({
@@ -152,8 +176,19 @@ export async function POST(req: NextRequest) {
         amenities,
         images,
         published,
-        userId: user.id,
+        isDraft,
+        userId: session.user.id,
       },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            image: true,
+          }
+        }
+      }
     })
 
     return NextResponse.json({ listing }, { status: 201 })

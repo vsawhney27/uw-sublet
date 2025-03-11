@@ -2,6 +2,8 @@ import { type NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import prisma from "@/lib/prisma"
 import { getCurrentUser, isAdmin } from "@/lib/auth"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
 
 // Validation schema for updating a listing
 const updateListingSchema = z.object({
@@ -134,42 +136,86 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 }
 
 // DELETE a listing
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
   try {
-    const { id } = params
+    const session = await getServerSession(authOptions)
 
-    // Check if user is authenticated
-    const user = await getCurrentUser(req)
-
-    if (!user) {
+    if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Get the listing
     const listing = await prisma.listing.findUnique({
-      where: { id },
+      where: { id: params.id },
+      select: { userId: true }
     })
 
     if (!listing) {
       return NextResponse.json({ error: "Listing not found" }, { status: 404 })
     }
 
-    // Check if user is the owner or an admin
-    const isUserAdmin = await isAdmin(req)
-
-    if (listing.userId !== user.id && !isUserAdmin) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    if (listing.userId !== session.user.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 })
     }
 
-    // Delete listing
     await prisma.listing.delete({
-      where: { id },
+      where: { id: params.id }
     })
 
     return NextResponse.json({ message: "Listing deleted successfully" })
   } catch (error) {
     console.error("Delete listing error:", error)
-    return NextResponse.json({ error: "Something went wrong" }, { status: 500 })
+    return NextResponse.json(
+      { error: "Failed to delete listing" },
+      { status: 500 }
+    )
+  }
+}
+
+// PATCH update a listing
+export async function PATCH(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions)
+
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const listing = await prisma.listing.findUnique({
+      where: { id: params.id },
+      select: { userId: true }
+    })
+
+    if (!listing) {
+      return NextResponse.json({ error: "Listing not found" }, { status: 404 })
+    }
+
+    if (listing.userId !== session.user.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 })
+    }
+
+    const body = await request.json()
+
+    const updatedListing = await prisma.listing.update({
+      where: { id: params.id },
+      data: {
+        ...body,
+        updatedAt: new Date(),
+      }
+    })
+
+    return NextResponse.json({ listing: updatedListing })
+  } catch (error) {
+    console.error("Update listing error:", error)
+    return NextResponse.json(
+      { error: "Failed to update listing" },
+      { status: 500 }
+    )
   }
 }
 

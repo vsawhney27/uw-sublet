@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import Link from "next/link"
+import { useSession } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -15,16 +15,20 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns"
 import { CalendarIcon, Upload, Loader2 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
-import { useSession } from "next-auth/react"
-import { useEffect } from "react"
+import Link from "next/link"
 
-export default function CreateListing() {
+export default function EditListingPage({
+  params,
+}: {
+  params: { id: string }
+}) {
   const router = useRouter()
   const { toast } = useToast()
   const { data: session, status } = useSession()
   const [startDate, setStartDate] = useState<Date | undefined>()
   const [endDate, setEndDate] = useState<Date | undefined>()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([])
   const [formData, setFormData] = useState({
     title: "",
@@ -35,13 +39,53 @@ export default function CreateListing() {
     images: [] as string[],
     emailContact: true,
     inAppContact: true,
+    isDraft: false
   })
 
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/login")
+      return
     }
-  }, [status, router])
+
+    const fetchListing = async () => {
+      try {
+        const response = await fetch(`/api/listings/${params.id}`)
+        const data = await response.json()
+
+        if (!response.ok) {
+          throw new Error(data.error || "Failed to fetch listing")
+        }
+
+        const listing = data.listing
+        setFormData({
+          title: listing.title,
+          rent: listing.price.toString(),
+          bedrooms: listing.bedrooms.toString(),
+          address: listing.address,
+          description: listing.description,
+          images: listing.images || [],
+          emailContact: listing.emailContact ?? true,
+          inAppContact: listing.inAppContact ?? true,
+          isDraft: listing.isDraft
+        })
+        setStartDate(new Date(listing.availableFrom))
+        setEndDate(new Date(listing.availableUntil))
+        setSelectedAmenities(listing.amenities || [])
+      } catch (error) {
+        console.error("Fetch error:", error)
+        toast({
+          title: "Error",
+          description: "Failed to load listing. Please try again.",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchListing()
+  }, [params.id, router, status, toast])
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
@@ -57,17 +101,12 @@ export default function CreateListing() {
   }
 
   const validateForm = () => {
-    console.log("Validating form with session:", session?.user);
-    console.log("Form data:", formData);
-    console.log("Dates:", { startDate, endDate });
-
     const missingFields = [];
 
     if (!session?.user) {
-      console.log("Validation failed: No user session");
       toast({
         title: "Error",
-        description: "You must be logged in to create a listing",
+        description: "You must be logged in to edit a listing",
         variant: "destructive",
       })
       router.push("/login")
@@ -82,7 +121,6 @@ export default function CreateListing() {
     if (!startDate || !endDate) missingFields.push("Availability dates");
 
     if (missingFields.length > 0) {
-      console.log("Validation failed: Missing fields:", missingFields);
       toast({
         title: "Please Fill All Required Fields",
         description: `Missing: ${missingFields.join(", ")}`,
@@ -91,22 +129,16 @@ export default function CreateListing() {
       return false
     }
 
-    console.log("Form validation passed");
     return true
   }
 
-  const handleSubmit = async (isDraft: boolean = false) => {
-    console.log("Submit button clicked", { isDraft });
-    
-    if (!validateForm()) {
-      console.log("Form validation failed");
-      return;
-    }
+  const handleSubmit = async (publishAfterEdit: boolean = false) => {
+    if (!validateForm()) return
 
-    setIsSubmitting(true);
+    setIsSubmitting(true)
     try {
-      const response = await fetch("/api/listings", {
-        method: "POST",
+      const response = await fetch(`/api/listings/${params.id}`, {
+        method: "PATCH",
         headers: {
           "Content-Type": "application/json",
         },
@@ -121,35 +153,34 @@ export default function CreateListing() {
           availableUntil: endDate!.toISOString(),
           amenities: selectedAmenities,
           images: formData.images,
-          isDraft: isDraft,
-          published: !isDraft // If it's a draft, it's not published
+          isDraft: !publishAfterEdit && formData.isDraft,
+          published: publishAfterEdit || !formData.isDraft
         }),
-      });
+      })
 
-      const data = await response.json();
+      const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || "Failed to create listing");
+        throw new Error(data.error || "Failed to update listing")
       }
 
       toast({
-        title: isDraft ? "Draft Saved!" : "Listing Published!",
-        description: isDraft 
-          ? "Your listing has been saved as a draft. You can find it in your account page." 
-          : "Your listing is now live and visible to other users.",
-      });
+        title: publishAfterEdit ? "Listing Published!" : "Listing Updated!",
+        description: publishAfterEdit 
+          ? "Your listing is now live and visible to other users."
+          : "Your changes have been saved successfully.",
+      })
 
-      // Always redirect to account page after creating a listing
-      router.push("/account");
+      router.push(formData.isDraft && !publishAfterEdit ? "/account" : `/listing/${params.id}`)
     } catch (error) {
-      console.error("Submission error:", error);
+      console.error("Update error:", error)
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to create listing. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to update listing",
         variant: "destructive",
-      });
+      })
     } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(false)
     }
   }
 
@@ -161,7 +192,7 @@ export default function CreateListing() {
     )
   }
 
-  if (status === "loading") {
+  if (status === "loading" || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-red-700" />
@@ -170,20 +201,20 @@ export default function CreateListing() {
   }
 
   if (status === "unauthenticated") {
-    return null // useEffect will handle redirect
+    return null
   }
 
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4">
       <div className="container mx-auto max-w-3xl">
-        <Link href="/" className="text-red-700 hover:underline mb-6 inline-block">
-          &larr; Back to home
+        <Link href={`/listing/${params.id}`} className="text-red-700 hover:underline mb-6 inline-block">
+          &larr; Back to listing
         </Link>
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-2xl font-bold">Create a New Listing</CardTitle>
-            <CardDescription>List your apartment for sublet to other UW-Madison students</CardDescription>
+            <CardTitle className="text-2xl font-bold">Edit Listing</CardTitle>
+            <CardDescription>Update your listing details</CardDescription>
           </CardHeader>
           <CardContent>
             <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); }}>
@@ -362,38 +393,46 @@ export default function CreateListing() {
             </form>
           </CardContent>
           <CardFooter className="flex justify-between">
-            <Button
-              variant="outline"
-              onClick={() => handleSubmit(true)}
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                'Save as Draft'
+            <div className="space-x-2">
+              <Button
+                variant="outline"
+                onClick={() => handleSubmit(false)}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save Changes'
+                )}
+              </Button>
+              {formData.isDraft && (
+                <Button
+                  onClick={() => handleSubmit(true)}
+                  disabled={isSubmitting}
+                  className="bg-red-700 hover:bg-red-800"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Publishing...
+                    </>
+                  ) : (
+                    'Publish Now'
+                  )}
+                </Button>
               )}
-            </Button>
-            <Button
-              onClick={() => handleSubmit(false)}
-              disabled={isSubmitting}
-              className="bg-red-700 hover:bg-red-800"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Publishing...
-                </>
-              ) : (
-                'Publish Listing'
-              )}
-            </Button>
+            </div>
+            <Link href={`/listing/${params.id}/delete`}>
+              <Button variant="destructive" disabled={isSubmitting}>
+                Delete Listing
+              </Button>
+            </Link>
           </CardFooter>
         </Card>
       </div>
     </div>
   )
-}
-
+} 

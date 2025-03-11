@@ -10,9 +10,26 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { UserCircle } from "lucide-react"
 import Link from "next/link"
+import { useEffect } from "react"
 
 export function UserNav() {
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
+
+  // Debug session status
+  useEffect(() => {
+    console.log("UserNav - Session status:", status)
+    console.log("UserNav - Session data:", session)
+  }, [session, status])
+
+  if (status === "loading") {
+    return (
+      <div className="flex gap-4">
+        <Button variant="outline" className="bg-white text-red-700 hover:bg-gray-100" disabled>
+          Loading...
+        </Button>
+      </div>
+    )
+  }
 
   if (!session?.user) {
     return (
@@ -56,7 +73,10 @@ export function UserNav() {
         </DropdownMenuItem>
         <DropdownMenuItem
           className="text-red-600 focus:text-red-600"
-          onClick={() => signOut()}
+          onClick={() => {
+            console.log("Logging out...")
+            signOut()
+          }}
         >
           Log out
         </DropdownMenuItem>
