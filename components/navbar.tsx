@@ -13,6 +13,16 @@ import {
   navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu"
 import { cn } from "@/lib/utils"
+import { signOut } from "next-auth/react"
+import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 interface NavbarProps {
   user?: {
@@ -51,78 +61,73 @@ ListItem.displayName = "ListItem"
 
 export function Navbar({ user }: NavbarProps) {
   return (
-    <nav className="bg-white shadow-sm sticky top-0 z-50">
-      <div className="container mx-auto px-4">
-        <div className="flex h-16 justify-between items-center">
+    <nav className="bg-red-700 border-b-[6px] border-red-800">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between h-16">
           <div className="flex items-center space-x-8">
-            <Link href="/" className="text-xl font-bold text-red-700">
-              BadgerSublets
+            <Link href="/" className="flex items-center">
+              <span className="text-xl font-bold text-white">Badger Sublets</span>
             </Link>
-
-            <NavigationMenu>
-              <NavigationMenuList>
-                <NavigationMenuItem>
-                  <NavigationMenuTrigger className={navigationMenuTriggerStyle()}>
-                    Browse
-                  </NavigationMenuTrigger>
-                  <NavigationMenuContent>
-                    <ul className="grid w-[200px] gap-3 p-4">
-                      <ListItem
-                        href="/listings"
-                        title="All Listings"
-                      >
-                        Browse all available sublets
-                      </ListItem>
-                      <ListItem
-                        href="/listings?type=room"
-                        title="Room Sublets"
-                      >
-                        Find individual rooms for rent
-                      </ListItem>
-                      <ListItem
-                        href="/listings?type=apartment"
-                        title="Apartment Sublets"
-                      >
-                        Browse full apartment sublets
-                      </ListItem>
-                    </ul>
-                  </NavigationMenuContent>
-                </NavigationMenuItem>
-
-                {user && (
-                  <NavigationMenuItem>
-                    <NavigationMenuTrigger className={navigationMenuTriggerStyle()}>
-                      Manage
-                    </NavigationMenuTrigger>
-                    <NavigationMenuContent>
-                      <ul className="grid w-[200px] gap-3 p-4">
-                        <ListItem
-                          href="/create-listing"
-                          title="Create Listing"
-                        >
-                          Post a new sublet listing
-                        </ListItem>
-                        <ListItem
-                          href="/my-listings"
-                          title="My Listings"
-                        >
-                          Manage your posted listings
-                        </ListItem>
-                        <ListItem
-                          href="/messages"
-                          title="Messages"
-                        >
-                          View and respond to messages
-                        </ListItem>
-                      </ul>
-                    </NavigationMenuContent>
-                  </NavigationMenuItem>
-                )}
-              </NavigationMenuList>
-            </NavigationMenu>
+            <div className="hidden md:flex space-x-8">
+              <Link href="/listings" className="text-white hover:text-gray-200">
+                Browse
+              </Link>
+              <Link href="/how-it-works" className="text-white hover:text-gray-200">
+                How it Works
+              </Link>
+              <Link href="/create-listing" className="text-white hover:text-gray-200">
+                List Your Space
+              </Link>
+              <Link href="/about" className="text-white hover:text-gray-200">
+                About
+              </Link>
+            </div>
           </div>
-
-          <UserNav />
+          <div className="flex items-center space-x-4">
+            {user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="text-white border-2 border-white hover:bg-red-800 hover:text-black hover:border-black">
+                    <Avatar className="h-8 w-8 mr-2 bg-white text-red-700">
+                      <AvatarFallback>{user.name?.[0] || user.email?.[0] || "U"}</AvatarFallback>
+                    </Avatar>
+                    Account
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56 bg-white">
+                  <DropdownMenuItem asChild className="hover:bg-gray-100">
+                    <Link href="/messages" className="w-full text-gray-700">Messages</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild className="hover:bg-gray-100">
+                    <Link href="/my-listings" className="w-full text-gray-700">My Listings</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild className="hover:bg-gray-100">
+                    <Link href="/saved" className="w-full text-gray-700">Saved Listings</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild className="hover:bg-gray-100">
+                    <Link href="/account" className="w-full text-gray-700">Account Settings</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => signOut()} className="text-red-600 hover:bg-gray-100 hover:text-red-700 cursor-pointer">
+                    Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <div className="flex items-center space-x-4">
+                <Link href="/login">
+                  <Button variant="ghost" className="text-white border-2 border-white hover:bg-red-800 hover:text-black hover:border-black">
+                    Sign In
+                  </Button>
+                </Link>
+                <Link href="/signup">
+                  <Button variant="ghost" className="text-white border-2 border-white hover:bg-red-800 hover:text-black hover:border-black">
+                    Sign Up
+                  </Button>
+                </Link>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </nav>

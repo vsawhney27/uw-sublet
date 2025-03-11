@@ -13,9 +13,6 @@ type ListingWithUser = Omit<Listing, 'availableFrom' | 'availableUntil' | 'creat
   availableFrom: string
   availableUntil: string
   createdAt: string
-  isRoomSublet?: boolean
-  totalRoommates?: number
-  roommateGenders?: string
 }
 
 export default function Home() {
@@ -25,7 +22,7 @@ export default function Home() {
   useEffect(() => {
     const fetchFeaturedListings = async () => {
       try {
-        const response = await fetch('/api/listings?limit=3')
+        const response = await fetch('/api/listings?limit=3&featured=true')
         const data = await response.json()
         setFeaturedListings(data.listings)
       } catch (error) {
@@ -39,167 +36,133 @@ export default function Home() {
   }, [])
 
   return (
-    <>
-      <main>
-        <div className="relative h-[700px] bg-cover bg-center" style={{
-          backgroundImage: 'url("/madison-capitol-lake.jpg")',
-          backgroundPosition: 'center 40%',
-          backgroundSize: 'cover'
-        }}>
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent">
-            <div className="container mx-auto px-4 h-full flex flex-col justify-center items-center text-center text-white pt-16">
-              <h1 className="text-6xl font-bold mb-6 drop-shadow-xl">Find Your Perfect Sublet in Madison</h1>
-              <p className="text-2xl mb-12 drop-shadow-lg max-w-2xl">Browse verified listings near UW-Madison campus and downtown</p>
-              <div className="w-full max-w-4xl">
-                <SearchFilterBar className="bg-white/95 backdrop-blur-sm shadow-xl rounded-xl border border-white/20" />
-              </div>
+    <main>
+      <div className="relative h-[700px] bg-cover bg-center" style={{
+        backgroundImage: 'url("/madison-capitol-lake.jpg")',
+        backgroundPosition: 'center 40%',
+        backgroundSize: 'cover'
+      }}>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent">
+          <div className="container mx-auto px-4 h-full flex flex-col justify-center items-center text-center text-white pt-16">
+            <h1 className="text-6xl font-bold mb-6 drop-shadow-xl">Find Your Perfect Sublet in Madison</h1>
+            <p className="text-2xl mb-12 drop-shadow-lg max-w-2xl">Browse verified listings near UW-Madison campus and downtown</p>
+            <div className="w-full max-w-4xl">
+              <SearchFilterBar 
+                className="bg-white/95 backdrop-blur-sm shadow-xl rounded-xl border border-white/20"
+                onFilterChange={(filters) => {
+                  // Only handle filter changes if needed
+                  console.log('Filters changed:', filters)
+                }}
+              />
             </div>
           </div>
         </div>
+      </div>
 
-        <div className="container mx-auto px-4 py-16">
-          <section className="bg-gradient-to-b from-red-700 to-red-800 text-white py-20">
-            <div className="container mx-auto px-4 text-center">
-              <h1 className="text-4xl md:text-6xl font-bold mb-6">Find Your Perfect Sublet at UW-Madison</h1>
-              <p className="text-xl md:text-2xl mb-8 max-w-3xl mx-auto">
-                A safe and secure platform exclusively for UW students to sublet apartments
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Link href="/listings">
-                  <Button size="lg" className="bg-white text-red-700 hover:bg-gray-100">
-                    Browse Listings
-                  </Button>
-                </Link>
-                <Link href="/create-listing">
-                  <Button size="lg" className="bg-white text-red-700 hover:bg-gray-100">
-                    Post Your Sublet
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          </section>
-
-          <section className="py-16 bg-white">
-            <div className="container mx-auto px-4">
-              <h2 className="text-3xl font-bold text-center mb-12">How It Works</h2>
-              <div className="grid md:grid-cols-3 gap-8">
-                <div className="bg-gray-50 p-6 rounded-lg text-center">
-                  <div className="w-16 h-16 bg-red-700 text-white rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold">
-                    1
-                  </div>
-                  <h3 className="text-xl font-semibold mb-3">Verify Your UW Email</h3>
-                  <p className="text-gray-600">
-                    Sign up with your @wisc.edu email to confirm you're a UW-Madison student.
-                  </p>
-                </div>
-                <div className="bg-gray-50 p-6 rounded-lg text-center">
-                  <div className="w-16 h-16 bg-red-700 text-white rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold">
-                    2
-                  </div>
-                  <h3 className="text-xl font-semibold mb-3">Create or Browse Listings</h3>
-                  <p className="text-gray-600">
-                    Post your apartment for sublet or browse available options from fellow Badgers.
-                  </p>
-                </div>
-                <div className="bg-gray-50 p-6 rounded-lg text-center">
-                  <div className="w-16 h-16 bg-red-700 text-white rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold">
-                    3
-                  </div>
-                  <h3 className="text-xl font-semibold mb-3">Connect Safely</h3>
-                  <p className="text-gray-600">Message verified UW students and arrange your sublet with confidence.</p>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section className="py-16 bg-gray-50">
-            <div className="container mx-auto px-4">
-              <h2 className="text-3xl font-bold text-center mb-12">Featured Listings</h2>
-              <div className="grid md:grid-cols-3 gap-8">
-                {isLoading ? (
-                  <div className="col-span-3 text-center py-12">Loading listings...</div>
-                ) : featuredListings.length > 0 ? (
-                  featuredListings.map((listing) => (
-                    <ListingCard
-                      key={listing.id}
-                      id={listing.id}
-                      title={listing.title}
-                      description={listing.description}
-                      address={listing.address}
-                      price={listing.price}
-                      bedrooms={listing.bedrooms}
-                      bathrooms={listing.bathrooms}
-                      amenities={listing.amenities}
-                      availableFrom={listing.availableFrom}
-                      availableUntil={listing.availableUntil}
-                      images={listing.images}
-                      isRoomSublet={listing.isRoomSublet}
-                      totalRoommates={listing.totalRoommates}
-                      roommateGenders={listing.roommateGenders}
-                      createdAt={listing.createdAt}
-                    />
-                  ))
-                ) : (
-                  <div className="col-span-3 text-center py-12">
-                    <p className="text-gray-600">No listings available at the moment.</p>
-                  </div>
-                )}
-              </div>
-              <div className="text-center mt-8">
-                <Link href="/listings">
-                  <Button variant="outline" className="border-red-700 text-red-700 hover:bg-red-50">
-                    View All Listings <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          </section>
-        </div>
-      </main>
-
-      <footer className="bg-gray-800 text-white py-12">
+      <section className="py-16">
         <div className="container mx-auto px-4">
-          <div className="grid md:grid-cols-3 gap-8">
-            <div>
-              <h3 className="text-xl font-bold mb-4">Badger Sublets</h3>
-              <p className="text-gray-300">The safe way for UW-Madison students to find and list sublets.</p>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4">Quick Links</h4>
-              <ul className="space-y-2">
-                <li>
-                  <Link href="/listings" className="text-gray-300 hover:text-white">
-                    Browse Listings
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/create-listing" className="text-gray-300 hover:text-white">
-                    Post a Sublet
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/how-it-works" className="text-gray-300 hover:text-white">
-                    How It Works
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/faq" className="text-gray-300 hover:text-white">
-                    FAQ
-                  </Link>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4">Contact</h4>
-              <p className="text-gray-300">Questions or feedback? Reach out to us at support@badger-sublets.com</p>
-            </div>
+          <div className="text-center mb-12">
+            <h2 className="text-4xl font-bold mb-4">Why Choose BadgerSublets?</h2>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              The easiest way to find and list sublets near UW-Madison campus
+            </p>
           </div>
-          <div className="border-t border-gray-700 mt-8 pt-8 text-center text-gray-300">
-            <p>© {new Date().getFullYear()} Badger Sublets. Not affiliated with the University of Wisconsin-Madison.</p>
+
+          <div className="grid md:grid-cols-3 gap-8 mb-16">
+            <div className="text-center p-6">
+              <div className="mb-4 flex justify-center">
+                <svg className="w-12 h-12 text-red-700" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 2L3 7V17L12 22L21 17V7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M12 8L16 10V14L12 16L8 14V10L12 8Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold mb-2">Verified Students</h3>
+              <p className="text-gray-600">
+                All listings are from verified UW-Madison students
+              </p>
+            </div>
+            <div className="text-center p-6">
+              <div className="mb-4 flex justify-center">
+                <svg className="w-12 h-12 text-red-700" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M21 10C21 17 12 23 12 23C12 23 3 17 3 10C3 5.02944 7.02944 1 12 1C16.9706 1 21 5.02944 21 10Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M12 13C13.6569 13 15 11.6569 15 10C15 8.34315 13.6569 7 12 7C10.3431 7 9 8.34315 9 10C9 11.6569 10.3431 13 12 13Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold mb-2">Prime Locations</h3>
+              <p className="text-gray-600">
+                Find sublets near campus and popular student areas
+              </p>
+            </div>
+            <div className="text-center p-6">
+              <div className="mb-4 flex justify-center">
+                <svg className="w-12 h-12 text-red-700" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M21 15C21 15.5304 20.7893 16.0391 20.4142 16.4142C20.0391 16.7893 19.5304 17 19 17H7L3 21V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V15Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold mb-2">Easy Communication</h3>
+              <p className="text-gray-600">
+                Message hosts directly through our platform
+              </p>
+            </div>
           </div>
         </div>
-      </footer>
-    </>
+      </section>
+
+      <section className="py-16 bg-gray-50">
+        <div className="container mx-auto px-4">
+          <h2 className="text-3xl font-bold mb-8">Featured Listings</h2>
+          {isLoading ? (
+            <div className="text-center text-gray-500">Loading featured listings...</div>
+          ) : featuredListings.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {featuredListings.map((listing) => (
+                <ListingCard
+                  key={listing.id}
+                  id={listing.id}
+                  title={listing.title}
+                  description={listing.description}
+                  address={listing.address}
+                  price={listing.price}
+                  bedrooms={listing.bedrooms}
+                  bathrooms={listing.bathrooms}
+                  amenities={listing.amenities}
+                  availableFrom={listing.availableFrom}
+                  availableUntil={listing.availableUntil}
+                  images={listing.images}
+                  isRoomSublet={listing.isRoomSublet}
+                  totalRoommates={listing.totalRoommates || undefined}
+                  roommateGenders={listing.roommateGenders || undefined}
+                  createdAt={listing.createdAt}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center text-gray-500">No featured listings available</div>
+          )}
+          <div className="text-center mt-8">
+            <Link href="/listings">
+              <Button variant="outline" className="text-red-700 hover:text-red-800">
+                View All Listings <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <section className="py-16">
+        <div className="container mx-auto px-4 text-center">
+          <h2 className="text-4xl font-bold mb-8">Ready to List Your Space?</h2>
+          <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+            Create your listing in minutes and reach thousands of UW-Madison students looking for sublets.
+          </p>
+          <Link href="/create-listing">
+            <Button className="bg-red-700 hover:bg-red-800 text-lg px-8 py-6">
+              Create Your Listing <ArrowRight className="ml-2 h-5 w-5" />
+            </Button>
+          </Link>
+        </div>
+      </section>
+    </main>
   )
 }
 

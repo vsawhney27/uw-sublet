@@ -63,11 +63,14 @@ export async function GET(request: Request) {
       }),
       ...(search && {
         OR: [
-          { title: { contains: search, mode: "insensitive" } },
-          { description: { contains: search, mode: "insensitive" } },
-          { address: { contains: search, mode: "insensitive" } }
+          { title: { contains: search.toLowerCase(), mode: "insensitive" } },
+          { description: { contains: search.toLowerCase(), mode: "insensitive" } },
+          { address: { contains: search.toLowerCase(), mode: "insensitive" } }
         ]
-      })
+      }),
+      // Always show published listings for everyone
+      published: true,
+      isDraft: false
     }
 
     // Handle visibility based on authentication and request type

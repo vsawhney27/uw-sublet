@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useState, useEffect } from "react"
+import { useRouter, useSearchParams, usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -20,7 +20,7 @@ const AMENITIES = [
   "Furnished",
   "Washer/Dryer",
   "Parking",
-  "Air Conditioning",
+  "AC",
   "Pets Allowed",
   "Utilities Included",
   "Dishwasher",
@@ -40,6 +40,7 @@ interface SearchFilterBarProps {
 export function SearchFilterBar({ className, onFilterChange, vertical = false }: SearchFilterBarProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const pathname = usePathname()
 
   // Get initial values from URL
   const [search, setSearch] = useState(searchParams.get("search") || "")
@@ -52,29 +53,31 @@ export function SearchFilterBar({ className, onFilterChange, vertical = false }:
     searchParams.get("amenities") ? searchParams.get("amenities")!.split(",") : [],
   )
 
+  const hasActiveFilters = search || minPrice > 0 || maxPrice < 3000 || bedrooms || availableFrom || availableUntil || selectedAmenities.length > 0
+
   // Apply filters
   const applyFilters = () => {
     const params = new URLSearchParams()
 
-    if (search) params.set("search", search)
-    params.set("minPrice", minPrice.toString())
-    params.set("maxPrice", maxPrice.toString())
+    // Add search query if it exists, will be used to filter street names and details
+    if (search.trim()) {
+      params.set("search", search.trim().toLowerCase())
+    }
+    
+    if (minPrice > 0) params.set("minPrice", minPrice.toString())
+    if (maxPrice < 3000) params.set("maxPrice", maxPrice.toString())
     if (bedrooms && bedrooms !== "any") params.set("bedrooms", bedrooms)
-    if (availableFrom) params.set("availableFrom", availableFrom)
-    if (availableUntil) params.set("availableUntil", availableUntil)
     if (selectedAmenities.length > 0) params.set("amenities", selectedAmenities.join(","))
 
-    const queryString = params.toString()
-    router.push(`/listings${queryString ? `?${queryString}` : ""}`)
+    // Always navigate to the listings page when applying filters
+    router.push(`/listings${params.toString() ? `?${params.toString()}` : ""}`)
 
     if (onFilterChange) {
       onFilterChange({
-        search,
+        search: search.trim().toLowerCase(),
         minPrice,
         maxPrice,
         bedrooms,
-        availableFrom,
-        availableUntil,
         amenities: selectedAmenities,
       })
     }
@@ -89,11 +92,20 @@ export function SearchFilterBar({ className, onFilterChange, vertical = false }:
     setAvailableFrom("")
     setAvailableUntil("")
     setSelectedAmenities([])
-
+    
+    // Clear URL params and navigate to listings
     router.push("/listings")
-
+    
     if (onFilterChange) {
-      onFilterChange({})
+      onFilterChange({
+        search: "",
+        minPrice: 0,
+        maxPrice: 3000,
+        bedrooms: "",
+        availableFrom: "",
+        availableUntil: "",
+        amenities: [],
+      })
     }
   }
 
@@ -125,16 +137,6 @@ export function SearchFilterBar({ className, onFilterChange, vertical = false }:
     }
   }
 
-  // Determine if any filters are active
-  const hasActiveFilters =
-    search !== "" ||
-    minPrice > 0 ||
-    maxPrice < 3000 ||
-    bedrooms !== "" ||
-    availableFrom !== "" ||
-    availableUntil !== "" ||
-    selectedAmenities.length > 0
-
   if (vertical) {
     return (
       <Card className={className}>
@@ -154,12 +156,13 @@ export function SearchFilterBar({ className, onFilterChange, vertical = false }:
             <div className="space-y-2">
               <label className="text-sm font-medium">Search</label>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 h-4 w-4" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 h-5 w-5" />
                 <Input
-                  className="pl-10"
-                  placeholder="Keywords..."
+                  className="pl-10 w-full h-12"
+                  placeholder="Search by location, street name, or description..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && applyFilters()}
                 />
               </div>
             </div>
@@ -307,24 +310,22 @@ export function SearchFilterBar({ className, onFilterChange, vertical = false }:
   }
 
   return (
-    <div className={`bg-white p-4 rounded-lg shadow ${className}`}>
-      <div className="flex flex-col md:flex-row gap-4">
-        <div className="relative flex-grow md:w-1/3">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 h-4 w-4" />
+    <div className={cn("flex flex-col gap-4", vertical ? "" : "md:flex-row", className)}>
+      <div className="flex-1 flex flex-col md:flex-row gap-4">
+        <div className="flex-[3] relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 h-5 w-5" />
           <Input
-            className="pl-10 w-full"
-            placeholder="Search by keyword, location..."
+            className="pl-10 w-full h-12"
+            placeholder="Search by location, street name, or description..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && applyFilters()}
           />
         </div>
 
-        <Select
-          value={bedrooms}
-          onValueChange={(value) => setBedrooms(value)}
-        >
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="Number of rooms" />
+        <Select value={bedrooms} onValueChange={setBedrooms}>
+          <SelectTrigger className="w-[180px] h-12">
+            <SelectValue placeholder="Bedrooms" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="any">Any</SelectItem>
@@ -335,32 +336,12 @@ export function SearchFilterBar({ className, onFilterChange, vertical = false }:
             <SelectItem value="4">4+ Bedrooms</SelectItem>
           </SelectContent>
         </Select>
+      </div>
 
-        <div className="flex gap-2">
-          <Input
-            type="date"
-            placeholder="Available From"
-            className="w-[160px] text-gray-900"
-            value={availableFrom}
-            onChange={(e) => setAvailableFrom(e.target.value)}
-          />
-          <Input
-            type="date"
-            placeholder="Available Until"
-            className="w-[160px] text-gray-900"
-            value={availableUntil}
-            onChange={(e) => setAvailableUntil(e.target.value)}
-          />
-        </div>
-
-        <Button className="bg-red-700 hover:bg-red-800 flex-grow" onClick={applyFilters}>
+      <div className="flex items-center justify-center">
+        <Button onClick={applyFilters} className="bg-red-700 hover:bg-red-800 border-[3px] w-[120px] h-12">
           Search
         </Button>
-        {hasActiveFilters && (
-          <Button variant="outline" onClick={resetFilters}>
-            <X className="h-4 w-4" />
-          </Button>
-        )}
       </div>
     </div>
   )

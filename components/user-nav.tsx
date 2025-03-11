@@ -10,16 +10,9 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { UserCircle } from "lucide-react"
 import Link from "next/link"
-import { useEffect } from "react"
 
 export function UserNav() {
   const { data: session, status } = useSession()
-
-  // Debug session status
-  useEffect(() => {
-    console.log("UserNav - Session status:", status)
-    console.log("UserNav - Session data:", session)
-  }, [session, status])
 
   if (status === "loading") {
     return (
@@ -55,7 +48,7 @@ export function UserNav() {
           <UserCircle className="h-8 w-8 text-white" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56" align="end" forceMount>
+      <DropdownMenuContent className="w-56" align="end">
         <div className="flex items-center justify-start gap-2 p-2">
           <div className="flex flex-col space-y-1 leading-none">
             <p className="font-medium">{displayName}</p>
@@ -63,20 +56,28 @@ export function UserNav() {
           </div>
         </div>
         <DropdownMenuItem asChild>
-          <Link href="/account">Account Settings</Link>
+          <Link href="/account" className="w-full cursor-pointer">
+            Account
+          </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/messages">Messages</Link>
+          <Link href="/my-listings" className="w-full cursor-pointer">
+            My Listings
+          </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/create-listing">Create Listing</Link>
+          <Link href="/messages" className="w-full cursor-pointer">
+            Messages
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/create-listing" className="w-full cursor-pointer">
+            Create Listing
+          </Link>
         </DropdownMenuItem>
         <DropdownMenuItem
-          className="text-red-600 focus:text-red-600"
-          onClick={() => {
-            console.log("Logging out...")
-            signOut()
-          }}
+          className="text-red-600 focus:text-red-600 cursor-pointer"
+          onClick={() => signOut()}
         >
           Log out
         </DropdownMenuItem>

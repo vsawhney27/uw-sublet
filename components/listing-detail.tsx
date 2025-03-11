@@ -38,6 +38,7 @@ export function ListingDetail({ listing, currentUser, onFavorite, isFavorite = f
   const [showMessageForm, setShowMessageForm] = useState(false)
   const [showEmailForm, setShowEmailForm] = useState(false)
   const [showReportForm, setShowReportForm] = useState(false)
+  const [showImageDialog, setShowImageDialog] = useState(false)
 
   const {
     id,
@@ -61,10 +62,35 @@ export function ListingDetail({ listing, currentUser, onFavorite, isFavorite = f
 
   const isOwner = currentUser?.id === user.id
 
+  const downloadImage = async (url: string, filename: string) => {
+    try {
+      const response = await fetch(url)
+      const blob = await response.blob()
+      const objectUrl = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = objectUrl
+      link.download = filename
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(objectUrl)
+    } catch (error) {
+      console.error('Error downloading image:', error)
+    }
+  }
+
+  const downloadAllImages = async () => {
+    if (!images?.length) return
+    for (let i = 0; i < images.length; i++) {
+      const filename = `${title.replace(/[^a-z0-9]/gi, '_')}_image_${i + 1}.jpg`
+      await downloadImage(images[i], filename)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <Link href="/" className="text-red-700 hover:underline">
+        <Link href="/listings" className="text-red-700 hover:underline">
           &larr; Back to listings
         </Link>
         {isOwner && (
@@ -108,16 +134,69 @@ export function ListingDetail({ listing, currentUser, onFavorite, isFavorite = f
               {/* Images */}
               <div className="space-y-4 mb-6">
                 {images && images.length > 0 ? (
-                  <div className="grid grid-cols-2 gap-4">
-                    {images.map((image, index) => (
-                      <img
-                        key={index}
-                        src={image}
-                        alt={`${title} - Image ${index + 1}`}
-                        className="rounded-lg w-full h-48 object-cover"
-                      />
-                    ))}
-                  </div>
+                  <>
+                    <div className="flex justify-end mb-2">
+                      <Button
+                        variant="outline"
+                        onClick={downloadAllImages}
+                        className="text-sm"
+                      >
+                        Download All Images
+                      </Button>
+                    </div>
+                    <Carousel
+                      opts={{
+                        align: "start",
+                        loop: true,
+                      }}
+                      className="w-full relative"
+                    >
+                      <CarouselContent>
+                        {images.map((image, index) => (
+                          <CarouselItem key={index}>
+                            <div className="relative aspect-[16/9]">
+                              <img
+                                src={image}
+                                alt={`${title} - Image ${index + 1}`}
+                                className="rounded-lg w-full h-full object-cover cursor-pointer"
+                                onClick={() => {
+                                  setActiveImageIndex(index);
+                                  setShowImageDialog(true);
+                                }}
+                              />
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="absolute bottom-2 right-2 bg-white/80 hover:bg-white"
+                                onClick={() => downloadImage(image, `${title.replace(/[^a-z0-9]/gi, '_')}_image_${index + 1}.jpg`)}
+                              >
+                                Download
+                              </Button>
+                            </div>
+                          </CarouselItem>
+                        ))}
+                      </CarouselContent>
+                      <CarouselPrevious className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white" />
+                      <CarouselNext className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white" />
+                    </Carousel>
+                    <div className="grid grid-cols-4 gap-2">
+                      {images.map((image, index) => (
+                        <div key={index} className="relative">
+                          <img
+                            src={image}
+                            alt={`${title} - Thumbnail ${index + 1}`}
+                            className={`rounded-lg w-full h-20 object-cover cursor-pointer ${
+                              index === activeImageIndex ? 'ring-2 ring-red-700' : ''
+                            }`}
+                            onClick={() => {
+                              setActiveImageIndex(index);
+                              setShowImageDialog(true);
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </>
                 ) : (
                   <div className="bg-gray-100 rounded-lg h-48 flex items-center justify-center">
                     <span className="text-gray-400">No images available</span>
@@ -262,6 +341,63 @@ export function ListingDetail({ listing, currentUser, onFavorite, isFavorite = f
             <DialogTitle>Report Listing</DialogTitle>
           </DialogHeader>
           <ReportForm listingId={id} onSuccess={() => setShowReportForm(false)} />
+        </DialogContent>
+      </Dialog>
+
+      {/* Image Dialog */}
+      <Dialog open={showImageDialog} onOpenChange={setShowImageDialog}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <div className="flex justify-between items-center mb-4">
+              <DialogTitle>{title} - Image {activeImageIndex + 1}</DialogTitle>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => downloadImage(
+                    images?.[activeImageIndex],
+                    `${title.replace(/[^a-z0-9]/gi, '_')}_image_${activeImageIndex + 1}.jpg`
+                  )}
+                >
+                  Download Image
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={downloadAllImages}
+                >
+                  Download All
+                </Button>
+              </div>
+            </div>
+          </DialogHeader>
+          <div className="relative">
+            <img
+              src={images?.[activeImageIndex]}
+              alt={`${title} - Full size image ${activeImageIndex + 1}`}
+              className="w-full h-auto"
+            />
+            <Button
+              variant="ghost"
+              size="lg"
+              className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white"
+              onClick={(e) => {
+                e.preventDefault();
+                setActiveImageIndex((prev) => (prev > 0 ? prev - 1 : images.length - 1));
+              }}
+            >
+              ←
+            </Button>
+            <Button
+              variant="ghost"
+              size="lg"
+              className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white"
+              onClick={(e) => {
+                e.preventDefault();
+                setActiveImageIndex((prev) => (prev < images.length - 1 ? prev + 1 : 0));
+              }}
+            >
+              →
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

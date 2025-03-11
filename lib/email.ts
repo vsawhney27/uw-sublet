@@ -6,11 +6,18 @@ const resend = new Resend(process.env.RESEND_API_KEY)
 // Email configuration
 const EMAIL_CONFIG = {
   from: process.env.EMAIL_FROM || "BadgerSublets <onboarding@resend.dev>",
+  support: process.env.SUPPORT_EMAIL || "veersawhney12345@gmail.com", // Default support email
   testMode: process.env.NODE_ENV === 'development',
   allowedTestEmails: [
     'veersawhney12345@gmail.com',
+    'support@badgersublets.com',
     // Add any other test email addresses here
   ]
+}
+
+// Helper function to get the support email
+export function getSupportEmail() {
+  return EMAIL_CONFIG.support
 }
 
 export async function sendVerificationEmail(email: string, token: string) {

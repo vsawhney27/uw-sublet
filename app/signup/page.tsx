@@ -1,14 +1,17 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Eye, EyeOff } from "lucide-react"
+import { useSession } from "next-auth/react"
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 
 export default function SignUp() {
   const router = useRouter()
+  const { data: session, status } = useSession()
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -22,6 +25,40 @@ export default function SignUp() {
     label: "Too Weak",
     color: "bg-red-500",
   })
+
+  useEffect(() => {
+    if (status === "authenticated") {
+      router.push("/account")
+    }
+  }, [status, router])
+
+  if (status === "loading") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <p>Loading...</p>
+      </div>
+    )
+  }
+
+  if (status === "authenticated") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="text-2xl font-bold text-center">Already Logged In</CardTitle>
+            <CardDescription className="text-center">
+              You are already logged in as {session.user?.email}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex justify-center">
+            <Button onClick={() => router.push("/account")} className="bg-red-700 hover:bg-red-800">
+              Go to Account
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   const calculatePasswordStrength = (password: string) => {
     let score = 0

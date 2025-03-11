@@ -5,6 +5,9 @@ import Script from "next/script"
 import "./globals.css"
 import { Providers } from "./providers"
 import { Header } from "@/components/header"
+import { Toaster } from "@/components/ui/toaster"
+import { NavWrapper } from "@/components/nav-wrapper"
+import { Footer } from "@/components/footer"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -22,7 +25,7 @@ export default function RootLayout({
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY?.trim()
 
   return (
-    <html lang="en">
+    <html lang="en" className="h-full">
       <head>
         {apiKey && (
           <Script
@@ -31,14 +34,14 @@ export default function RootLayout({
           />
         )}
       </head>
-      <body className={inter.className}>
+      <body className={`${inter.className} min-h-full flex flex-col`}>
         <Providers>
-          <div className="min-h-screen flex flex-col">
-            <Header />
-            <main className="flex-1">
-              {children}
-            </main>
-          </div>
+          <NavWrapper />
+          <main className="flex-1">
+            {children}
+          </main>
+          <Footer />
+          <Toaster />
         </Providers>
       </body>
     </html>

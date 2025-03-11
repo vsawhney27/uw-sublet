@@ -28,6 +28,7 @@ interface ListingCardProps {
   roommateGenders?: string
   compact?: boolean
   createdAt: Date | string
+  isDraft?: boolean
 }
 
 export function ListingCard({
@@ -47,6 +48,7 @@ export function ListingCard({
   roommateGenders,
   compact,
   createdAt,
+  isDraft = false,
 }: ListingCardProps) {
   // Format dates with error handling
   const formatDate = (dateString: string) => {
@@ -89,10 +91,15 @@ export function ListingCard({
             alt={title}
             className="w-full h-full object-cover"
           />
-          <div className="absolute bottom-2 left-2">
+          <div className="absolute bottom-2 left-2 flex gap-2">
             <Badge variant="secondary" className="bg-white/80 backdrop-blur-sm text-xs">
               {timeAgo}
             </Badge>
+            {isDraft && (
+              <Badge variant="outline" className="bg-white/80 backdrop-blur-sm text-xs">
+                Draft
+              </Badge>
+            )}
           </div>
         </div>
         <CardContent className="p-4">
