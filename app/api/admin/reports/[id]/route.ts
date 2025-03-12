@@ -11,10 +11,10 @@ const updateReportSchema = z.object({
 // GET a single report by ID (admin only)
 export async function GET(
   req: Request,
-  props: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
-    const { id } = props.params
+    const { id } = context.params
 
     // Check if user is authenticated and is an admin
     const user = await getCurrentUser(req as NextRequest)
@@ -70,10 +70,10 @@ export async function GET(
 // PUT update a report status (admin only)
 export async function PUT(
   req: Request,
-  props: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
-    const { id } = props.params
+    const { id } = context.params
 
     // Check if user is authenticated and is an admin
     const user = await getCurrentUser(req as NextRequest)
