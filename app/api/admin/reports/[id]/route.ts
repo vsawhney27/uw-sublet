@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server"
-import type { NextApiRequest } from "next/types"
 import { z } from "zod"
 import prisma from "@/lib/prisma"
 import { getCurrentUser, isAdmin } from "@/lib/auth"
@@ -11,20 +10,20 @@ const updateReportSchema = z.object({
 
 // GET a single report by ID (admin only)
 export async function GET(
-  request: NextRequest,
+  req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
     const { id } = params
 
     // Check if user is authenticated and is an admin
-    const user = await getCurrentUser(request)
+    const user = await getCurrentUser(req)
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const userIsAdmin = await isAdmin(request)
+    const userIsAdmin = await isAdmin(req)
 
     if (!userIsAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
@@ -70,26 +69,26 @@ export async function GET(
 
 // PUT update a report status (admin only)
 export async function PUT(
-  request: NextRequest,
+  req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
     const { id } = params
 
     // Check if user is authenticated and is an admin
-    const user = await getCurrentUser(request)
+    const user = await getCurrentUser(req)
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const userIsAdmin = await isAdmin(request)
+    const userIsAdmin = await isAdmin(req)
 
     if (!userIsAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    const body = await request.json()
+    const body = await req.json()
 
     // Validate input
     const result = updateReportSchema.safeParse(body)
@@ -103,6 +102,28 @@ export async function PUT(
     const updatedReport = await prisma.report.update({
       where: { id },
       data: { status },
+      include: {
+        reporter: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            image: true,
+          },
+        },
+        listing: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                image: true,
+              },
+            },
+          },
+        },
+      },
     })
 
     return NextResponse.json({ report: updatedReport })
