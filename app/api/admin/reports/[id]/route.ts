@@ -8,22 +8,27 @@ const updateReportSchema = z.object({
   status: z.enum(["PENDING", "RESOLVED", "DISMISSED"]),
 })
 
+// Use the correct type definitions for Next.js 15.2.2
+type RouteContext = {
+  params: Record<string, string | string[]>;
+}
+
 // GET a single report by ID (admin only)
 export async function GET(
-  req: Request,
-  context: { params: { id: string } }
+  req: NextRequest,
+  context: RouteContext
 ) {
   try {
-    const { id } = context.params
+    const id = context.params.id as string
 
     // Check if user is authenticated and is an admin
-    const user = await getCurrentUser(req as NextRequest)
+    const user = await getCurrentUser(req)
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const userIsAdmin = await isAdmin(req as NextRequest)
+    const userIsAdmin = await isAdmin(req)
 
     if (!userIsAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
@@ -69,20 +74,20 @@ export async function GET(
 
 // PUT update a report status (admin only)
 export async function PUT(
-  req: Request,
-  context: { params: { id: string } }
+  req: NextRequest,
+  context: RouteContext
 ) {
   try {
-    const { id } = context.params
+    const id = context.params.id as string
 
     // Check if user is authenticated and is an admin
-    const user = await getCurrentUser(req as NextRequest)
+    const user = await getCurrentUser(req)
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const userIsAdmin = await isAdmin(req as NextRequest)
+    const userIsAdmin = await isAdmin(req)
 
     if (!userIsAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
