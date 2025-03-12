@@ -8,16 +8,10 @@ const updateReportSchema = z.object({
   status: z.enum(["PENDING", "RESOLVED", "DISMISSED"]),
 })
 
-type RouteContext = {
-  params: {
-    id: string
-  }
-}
-
 // GET a single report by ID (admin only)
 export async function GET(
   request: NextRequest,
-  { params }: RouteContext
+  { params }: { params: { id: string } }
 ) {
   try {
     const { id } = params
@@ -76,7 +70,7 @@ export async function GET(
 // PUT update a report status (admin only)
 export async function PUT(
   request: NextRequest,
-  { params }: RouteContext
+  { params }: { params: { id: string } }
 ) {
   try {
     const { id } = params
