@@ -9,18 +9,21 @@ const updateReportSchema = z.object({
 })
 
 // GET a single report by ID (admin only)
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(
+  request: NextRequest,
+  context: { params: { id: string } }
+) {
   try {
-    const { id } = params
+    const { id } = context.params
 
     // Check if user is authenticated and is an admin
-    const user = await getCurrentUser(req)
+    const user = await getCurrentUser(request)
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const userIsAdmin = await isAdmin(req)
+    const userIsAdmin = await isAdmin(request)
 
     if (!userIsAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
@@ -65,24 +68,27 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 }
 
 // PUT update a report status (admin only)
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(
+  request: NextRequest,
+  context: { params: { id: string } }
+) {
   try {
-    const { id } = params
+    const { id } = context.params
 
     // Check if user is authenticated and is an admin
-    const user = await getCurrentUser(req)
+    const user = await getCurrentUser(request)
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const userIsAdmin = await isAdmin(req)
+    const userIsAdmin = await isAdmin(request)
 
     if (!userIsAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    const body = await req.json()
+    const body = await request.json()
 
     // Validate input
     const result = updateReportSchema.safeParse(body)
