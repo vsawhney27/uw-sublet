@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { Resend } from "resend"
-import { getSupportEmail } from "@/lib/email"
+import { getSupportEmail, getActualEmail } from "@/lib/email"
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -18,10 +18,11 @@ export async function POST(req: Request) {
 
     // If it's a support inquiry, send to support email
     const recipientEmail = isSupport ? getSupportEmail() : to
+    const actualRecipient = getActualEmail(recipientEmail)
 
     const emailResponse = await resend.emails.send({
-      from: "Badger Sublets <support@badgersublets.com>",
-      to: [recipientEmail],
+      from: "Badger Sublets <notifications@badgersublets.com>",
+      to: [actualRecipient],
       subject: isSupport ? `Support Inquiry: ${subject}` : subject,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">

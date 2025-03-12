@@ -3,14 +3,22 @@ import { Resend } from 'resend'
 // Initialize Resend with API key
 const resend = new Resend(process.env.RESEND_API_KEY)
 
+// Email mapping function
+function getActualEmail(badgerEmail: string): string {
+  // Map all badgersublets.com emails to Gmail
+  if (badgerEmail.endsWith('@badgersublets.com')) {
+    return 'badgersublets@gmail.com';
+  }
+  return badgerEmail;
+}
+
 // Email configuration
 const EMAIL_CONFIG = {
-  from: "Badger Sublets <support@badgersublets.com>",
-  support: "support@badgersublets.com", // This will redirect to badgersublets@gmail.com in Resend
+  from: "Badger Sublets <notifications@badgersublets.com>",
+  support: "badgersublets@gmail.com", // Direct use of Gmail address
   testMode: process.env.NODE_ENV === 'development',
   allowedTestEmails: [
     'badgersublets@gmail.com',
-    'support@badgersublets.com',
     // Add any other test email addresses here
   ]
 }
@@ -19,6 +27,9 @@ const EMAIL_CONFIG = {
 export function getSupportEmail() {
   return EMAIL_CONFIG.support
 }
+
+// Export the email mapping function
+export { getActualEmail }
 
 export async function sendVerificationEmail(email: string, token: string) {
   console.log("=== Verification Email Debug ===")
@@ -140,15 +151,18 @@ async function sendEmail({ to, subject, text, html }: { to: string, subject: str
       throw new Error("RESEND_API_KEY is not configured")
     }
 
+    // Map the recipient email if it's a badgersublets.com address
+    const actualRecipient = getActualEmail(to)
+
     // In test mode, only allow emails to specified test addresses
-    if (EMAIL_CONFIG.testMode && !EMAIL_CONFIG.allowedTestEmails.includes(to)) {
-      console.log("Test mode: Simulating email send to", to)
+    if (EMAIL_CONFIG.testMode && !EMAIL_CONFIG.allowedTestEmails.includes(actualRecipient)) {
+      console.log("Test mode: Simulating email send to", actualRecipient)
       return {
         success: true,
         data: {
           id: 'test_' + Date.now(),
           from: EMAIL_CONFIG.from,
-          to,
+          to: actualRecipient,
           subject,
           text,
           html,
@@ -159,7 +173,7 @@ async function sendEmail({ to, subject, text, html }: { to: string, subject: str
     console.log("Attempting to send email via Resend...")
     const { data, error } = await resend.emails.send({
       from: EMAIL_CONFIG.from,
-      to,
+      to: actualRecipient,
       subject,
       text,
       html,

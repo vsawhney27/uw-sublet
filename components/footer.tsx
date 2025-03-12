@@ -1,8 +1,14 @@
+"use client"
+
 import Link from "next/link"
 import { getSupportEmail } from "@/lib/email"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { EmailForm } from "@/components/email-form"
+import { useState } from "react"
 
 export function Footer() {
   const supportEmail = "support@badgersublets.com"
+  const [showEmailDialog, setShowEmailDialog] = useState(false)
 
   return (
     <footer className="bg-gray-900 text-gray-300">
@@ -61,12 +67,12 @@ export function Footer() {
             <h3 className="text-lg font-semibold text-white">Contact</h3>
             <p className="text-sm">
               Questions or concerns?{" "}
-              <a
-                href={`mailto:${supportEmail}`}
+              <button
+                onClick={() => setShowEmailDialog(true)}
                 className="text-red-500 hover:text-red-400 transition-colors"
               >
                 {supportEmail}
-              </a>
+              </button>
             </p>
           </div>
         </div>
@@ -76,6 +82,16 @@ export function Footer() {
           <p className="mt-2">Not affiliated with the University of Wisconsin-Madison.</p>
         </div>
       </div>
+
+      {/* Support Email Dialog */}
+      <Dialog open={showEmailDialog} onOpenChange={setShowEmailDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Contact Support</DialogTitle>
+          </DialogHeader>
+          <EmailForm isSupport={true} />
+        </DialogContent>
+      </Dialog>
     </footer>
   )
 } 

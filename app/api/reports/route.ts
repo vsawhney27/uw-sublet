@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import prisma from "@/lib/prisma"
 import { z } from "zod"
-import { getSupportEmail } from "@/lib/email"
+import { getSupportEmail, getActualEmail } from "@/lib/email"
 import { Resend } from "resend"
 
 const reportSchema = z.object({
@@ -71,7 +71,7 @@ export async function POST(req: Request) {
       const supportEmail = getSupportEmail()
       const { data, error } = await resend.emails.send({
         from: "Badger Sublets <notifications@badgersublets.com>",
-        to: supportEmail,
+        to: getActualEmail(supportEmail),
         subject: `New Listing Report: ${listing.title}`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
