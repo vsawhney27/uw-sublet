@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import type { NextApiRequest } from "next/types"
 import { z } from "zod"
 import prisma from "@/lib/prisma"
 import { getCurrentUser, isAdmin } from "@/lib/auth"
@@ -8,27 +9,22 @@ const updateReportSchema = z.object({
   status: z.enum(["PENDING", "RESOLVED", "DISMISSED"]),
 })
 
-// Use the correct type definitions for Next.js 15.2.2
-type RouteContext = {
-  params: Record<string, string | string[]>;
-}
-
 // GET a single report by ID (admin only)
 export async function GET(
-  req: NextRequest,
-  context: RouteContext
+  request: NextRequest,
+  { params }: { params: { id: string } }
 ) {
   try {
-    const id = context.params.id as string
+    const { id } = params
 
     // Check if user is authenticated and is an admin
-    const user = await getCurrentUser(req)
+    const user = await getCurrentUser(request)
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const userIsAdmin = await isAdmin(req)
+    const userIsAdmin = await isAdmin(request)
 
     if (!userIsAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
@@ -74,26 +70,26 @@ export async function GET(
 
 // PUT update a report status (admin only)
 export async function PUT(
-  req: NextRequest,
-  context: RouteContext
+  request: NextRequest,
+  { params }: { params: { id: string } }
 ) {
   try {
-    const id = context.params.id as string
+    const { id } = params
 
     // Check if user is authenticated and is an admin
-    const user = await getCurrentUser(req)
+    const user = await getCurrentUser(request)
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const userIsAdmin = await isAdmin(req)
+    const userIsAdmin = await isAdmin(request)
 
     if (!userIsAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    const body = await req.json()
+    const body = await request.json()
 
     // Validate input
     const result = updateReportSchema.safeParse(body)
