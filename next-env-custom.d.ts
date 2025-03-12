@@ -1,12 +1,16 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 
 declare module 'next/server' {
-  export interface AppRouteHandlerContext {
-    params: Record<string, string | string[]>;
+  interface RouteHandlerContext<TParams extends Record<string, string | string[]> = Record<string, string | string[]>> {
+    params: TParams;
   }
 
-  export type AppRouteHandlerFn = (
+  type RouteSegment<TParam extends string | number | boolean = string> = {
+    [key: string]: TParam;
+  };
+
+  type RouteHandler<TParams extends RouteSegment = RouteSegment> = (
     request: NextRequest,
-    context: AppRouteHandlerContext
+    context: RouteHandlerContext<TParams>
   ) => Promise<Response> | Response;
-} 
+}
