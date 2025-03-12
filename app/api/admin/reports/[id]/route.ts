@@ -8,13 +8,19 @@ const updateReportSchema = z.object({
   status: z.enum(["PENDING", "RESOLVED", "DISMISSED"]),
 })
 
+interface RouteParams {
+  params: {
+    id: string;
+  };
+}
+
 // GET a single report by ID (admin only)
 export async function GET(
   request: NextRequest,
-  context: { params: { id: string } }
+  { params }: RouteParams
 ) {
   try {
-    const { id } = context.params
+    const { id } = params
 
     // Check if user is authenticated and is an admin
     const user = await getCurrentUser(request)
@@ -70,10 +76,10 @@ export async function GET(
 // PUT update a report status (admin only)
 export async function PUT(
   request: NextRequest,
-  context: { params: { id: string } }
+  { params }: RouteParams
 ) {
   try {
-    const { id } = context.params
+    const { id } = params
 
     // Check if user is authenticated and is an admin
     const user = await getCurrentUser(request)
