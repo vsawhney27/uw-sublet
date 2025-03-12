@@ -32,7 +32,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const session = await getServerSession(authOptions)
     
-    const search = searchParams.get("search")
+    const search = searchParams.get("search")?.trim().toLowerCase() || ""
     const minPrice = searchParams.get("minPrice") ? Number(searchParams.get("minPrice")) : 0
     const maxPrice = searchParams.get("maxPrice") ? Number(searchParams.get("maxPrice")) : 10000
     const bedrooms = searchParams.get("bedrooms")
@@ -43,8 +43,22 @@ export async function GET(request: Request) {
     const showDrafts = searchParams.get("showDrafts") === "true"
     const userOnly = searchParams.get("userOnly") === "true"
 
-    // Base where clause
-    let where: Prisma.ListingWhereInput = {
+    console.log("Search term received:", search)
+    console.log("Request params:", {
+      search,
+      minPrice,
+      maxPrice,
+      bedrooms,
+      availableFrom,
+      availableUntil,
+      amenities,
+      showDrafts,
+      userOnly,
+      userId: session?.user?.id
+    });
+
+    // Base content filters
+    const contentFilters = {
       price: {
         gte: minPrice,
         lte: maxPrice
@@ -60,32 +74,47 @@ export async function GET(request: Request) {
       }),
       ...(amenities.length > 0 && {
         amenities: { hasEvery: amenities }
-      }),
-      ...(search && {
-        OR: [
-          { title: { contains: search.toLowerCase(), mode: "insensitive" } },
-          { description: { contains: search.toLowerCase(), mode: "insensitive" } },
-          { address: { contains: search.toLowerCase(), mode: "insensitive" } }
-        ]
-      }),
-      // Always show published listings for everyone
-      published: true,
-      isDraft: false
+      })
     }
 
-    // Handle visibility based on authentication and request type
+    // Visibility filters based on user session and request params
+    let visibilityFilters;
     if (userOnly && session?.user) {
-      // Show all user's listings including drafts
-      where.userId = session.user.id;
+      // User's own listings - show both drafts and published
+      visibilityFilters = {
+        userId: session.user.id
+      }
     } else {
-      // Show published listings for everyone, and drafts only for the owner
-      where.OR = [
-        { published: true, isDraft: false },
-        ...(session?.user ? [{ userId: session.user.id, isDraft: true }] : [])
-      ];
+      // Public listings - only show published, non-draft listings
+      visibilityFilters = {
+        published: true,
+        isDraft: false
+      }
     }
 
-    console.log("Fetching listings with where clause:", where);
+    // Combine all filters
+    let where: Prisma.ListingWhereInput = {
+      ...contentFilters,
+      ...visibilityFilters
+    }
+
+    // Add search conditions if search term exists
+    if (search) {
+      where = {
+        AND: [
+          where,
+          {
+            OR: [
+              { title: { contains: search, mode: "insensitive" } },
+              { description: { contains: search, mode: "insensitive" } },
+              { address: { contains: search, mode: "insensitive" } }
+            ]
+          }
+        ]
+      }
+    }
+
+    console.log("Final where clause:", JSON.stringify(where, null, 2))
 
     const listings = await prisma.listing.findMany({
       where,
@@ -98,21 +127,31 @@ export async function GET(request: Request) {
             email: true,
             image: true
           }
-        }
+        },
+        ...(session?.user ? {
+          savedBy: {
+            where: {
+              userId: session.user.id
+            },
+            select: {
+              userId: true
+            }
+          }
+        } : {})
       },
       orderBy: {
         createdAt: "desc"
       }
     })
 
-    console.log(`Found ${listings.length} listings`);
-
-    // Format dates as ISO strings
+    // Format the listings with dates and saved status
     const formattedListings = listings.map(listing => ({
       ...listing,
       availableFrom: listing.availableFrom.toISOString(),
       availableUntil: listing.availableUntil.toISOString(),
-      createdAt: listing.createdAt.toISOString()
+      createdAt: listing.createdAt.toISOString(),
+      isSaved: session?.user ? listing.savedBy.length > 0 : false,
+      savedBy: undefined // Remove the savedBy array from the response
     }))
 
     return NextResponse.json({ listings: formattedListings })
@@ -135,16 +174,25 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
+    console.log("Received request body:", body);
+
+    // For drafts, we'll use a more lenient schema
+    const validationSchema = body.isDraft 
+      ? listingSchema.extend({
+          description: z.string().optional()
+        })
+      : listingSchema;
 
     // Validate input
-    const result = listingSchema.safeParse(body)
+    const result = validationSchema.safeParse(body)
     if (!result.success) {
+      console.log("Validation error:", result.error.errors);
       return NextResponse.json({ error: result.error.errors[0].message }, { status: 400 })
     }
 
     const {
       title,
-      description,
+      description = "",
       price,
       address,
       bedrooms,
@@ -153,17 +201,9 @@ export async function POST(req: NextRequest) {
       availableUntil,
       amenities,
       images = [],
-      published = true,
+      published = false,
       isDraft = false,
     } = result.data
-
-    // Ensure published and isDraft aren't both true
-    if (published && isDraft) {
-      return NextResponse.json(
-        { error: "A listing cannot be both published and a draft" },
-        { status: 400 }
-      )
-    }
 
     // Create listing
     const listing = await prisma.listing.create({
@@ -194,6 +234,7 @@ export async function POST(req: NextRequest) {
       }
     })
 
+    console.log("Created listing:", listing);
     return NextResponse.json({ listing }, { status: 201 })
   } catch (error) {
     console.error("Create listing error:", error)

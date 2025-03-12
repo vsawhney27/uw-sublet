@@ -6,14 +6,17 @@ import { Textarea } from "@/components/ui/textarea"
 import { CheckCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/components/ui/use-toast"
+import { useRouter } from "next/navigation"
 
 interface EmailFormProps {
-  receiverEmail: string
-  listingTitle: string
+  receiverEmail?: string
+  listingTitle?: string
+  isSupport?: boolean
 }
 
-export function EmailForm({ receiverEmail, listingTitle }: EmailFormProps) {
+export function EmailForm({ receiverEmail, listingTitle, isSupport = false }: EmailFormProps) {
   const { toast } = useToast()
+  const router = useRouter()
   const [message, setMessage] = useState("")
   const [isSending, setIsSending] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
@@ -31,9 +34,10 @@ export function EmailForm({ receiverEmail, listingTitle }: EmailFormProps) {
         },
         body: JSON.stringify({
           to: receiverEmail,
-          subject: `Question about your listing: ${listingTitle}`,
+          subject: isSupport ? "Support Request" : `Question about your listing: ${listingTitle}`,
           message: message,
           listingTitle,
+          isSupport
         }),
       })
 
@@ -46,11 +50,21 @@ export function EmailForm({ receiverEmail, listingTitle }: EmailFormProps) {
       setShowSuccess(true)
       toast({
         title: "Email sent",
-        description: "Your email has been sent successfully",
+        description: isSupport 
+          ? "Your support request has been sent. We'll get back to you soon."
+          : "Your email has been sent successfully",
       })
-      setTimeout(() => {
-        setShowSuccess(false)
-      }, 2000)
+      
+      // Redirect to homepage if it's a support email
+      if (isSupport) {
+        setTimeout(() => {
+          router.push("/")
+        }, 1500)
+      } else {
+        setTimeout(() => {
+          setShowSuccess(false)
+        }, 2000)
+      }
     } catch (error) {
       console.error("Failed to send email:", error)
       toast({
@@ -68,7 +82,9 @@ export function EmailForm({ receiverEmail, listingTitle }: EmailFormProps) {
       <Textarea
         value={message}
         onChange={(e) => setMessage(e.target.value)}
-        placeholder="Write your message..."
+        placeholder={isSupport 
+          ? "Describe your issue or question..." 
+          : "Write your message..."}
         className="min-h-[100px]"
         disabled={isSending}
       />
@@ -88,7 +104,7 @@ export function EmailForm({ receiverEmail, listingTitle }: EmailFormProps) {
                 showSuccess ? "-translate-y-full opacity-0" : "translate-y-0 opacity-100"
               )}
             >
-              {isSending ? "Sending..." : "Send Email"}
+              {isSending ? "Sending..." : isSupport ? "Send Support Request" : "Send Email"}
             </div>
             <div 
               className={cn(

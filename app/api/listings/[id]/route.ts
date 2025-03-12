@@ -31,9 +31,10 @@ const updateListingSchema = z.object({
 })
 
 // GET a single listing by ID
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, context: { params: { id: string } }) {
   try {
-    const { id } = params
+    const session = await getServerSession(authOptions)
+    const { id } = await context.params
 
     const listing = await prisma.listing.findUnique({
       where: { id },
@@ -43,32 +44,52 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
             id: true,
             name: true,
             email: true,
-            image: true,
-          },
+            image: true
+          }
         },
-      },
+        ...(session?.user ? {
+          savedBy: {
+            where: {
+              userId: session.user.id
+            }
+          }
+        } : {})
+      }
     })
 
     if (!listing) {
       return NextResponse.json({ error: "Listing not found" }, { status: 404 })
     }
 
-    return NextResponse.json({ listing })
+    // Format dates and add saved status
+    const formattedListing = {
+      ...listing,
+      availableFrom: listing.availableFrom.toISOString(),
+      availableUntil: listing.availableUntil.toISOString(),
+      createdAt: listing.createdAt.toISOString(),
+      isSaved: session?.user ? listing.savedBy.length > 0 : false,
+      savedBy: undefined // Remove the savedBy array from the response
+    }
+
+    return NextResponse.json({ listing: formattedListing })
   } catch (error) {
-    console.error("Get listing error:", error)
-    return NextResponse.json({ error: "Something went wrong" }, { status: 500 })
+    console.error("Error fetching listing:", error)
+    return NextResponse.json(
+      { error: "Failed to fetch listing" },
+      { status: 500 }
+    )
   }
 }
 
 // PUT update a listing
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest, context: { params: { id: string } }) {
   try {
-    const { id } = params
+    const { id } = await context.params
 
     // Check if user is authenticated
-    const user = await getCurrentUser(req)
+    const session = await getServerSession(authOptions)
 
-    if (!user) {
+    if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
@@ -84,7 +105,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     // Check if user is the owner or an admin
     const isUserAdmin = await isAdmin(req)
 
-    if (listing.userId !== user.id && !isUserAdmin) {
+    if (listing.userId !== session.user.id && !isUserAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
@@ -138,9 +159,10 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 // DELETE a listing
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
+    const { id } = await context.params
     const session = await getServerSession(authOptions)
 
     if (!session?.user) {
@@ -148,7 +170,7 @@ export async function DELETE(
     }
 
     const listing = await prisma.listing.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: { userId: true }
     })
 
@@ -161,7 +183,7 @@ export async function DELETE(
     }
 
     await prisma.listing.delete({
-      where: { id: params.id }
+      where: { id }
     })
 
     return NextResponse.json({ message: "Listing deleted successfully" })
@@ -177,9 +199,10 @@ export async function DELETE(
 // PATCH update a listing
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
+    const { id } = await context.params
     const session = await getServerSession(authOptions)
 
     if (!session?.user) {
@@ -187,7 +210,7 @@ export async function PATCH(
     }
 
     const listing = await prisma.listing.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: { userId: true }
     })
 
@@ -200,18 +223,73 @@ export async function PATCH(
     }
 
     const body = await request.json()
+    console.log('Received update request:', body)
 
+    // Validate required fields if publishing
+    if (body.published === true) {
+      const fullListing = await prisma.listing.findUnique({
+        where: { id }
+      })
+
+      if (!fullListing) {
+        return NextResponse.json({ error: "Listing not found" }, { status: 404 })
+      }
+
+      const requiredFields = ['title', 'description', 'price', 'address', 'bedrooms', 'bathrooms', 'availableFrom', 'availableUntil']
+      const missingFields = requiredFields.filter(field => {
+        const value = fullListing[field as keyof typeof fullListing]
+        return value === null || value === undefined || value === ''
+      })
+      
+      if (missingFields.length > 0) {
+        return NextResponse.json({
+          error: `Missing required fields: ${missingFields.join(', ')}`,
+          missingFields
+        }, { status: 400 })
+      }
+    }
+
+    // Update listing
     const updatedListing = await prisma.listing.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         ...body,
-        updatedAt: new Date(),
+        published: body.published ?? false,
+        isDraft: body.isDraft ?? false
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            image: true
+          }
+        },
+        ...(session?.user ? {
+          savedBy: {
+            where: {
+              userId: session.user.id
+            }
+          }
+        } : {})
       }
     })
 
-    return NextResponse.json({ listing: updatedListing })
+    // Format dates and add saved status
+    const formattedListing = {
+      ...updatedListing,
+      availableFrom: updatedListing.availableFrom.toISOString(),
+      availableUntil: updatedListing.availableUntil.toISOString(),
+      createdAt: updatedListing.createdAt.toISOString(),
+      isSaved: session?.user ? updatedListing.savedBy?.length > 0 : false,
+      savedBy: undefined // Remove the savedBy array from the response
+    }
+
+    console.log('Updated listing:', formattedListing)
+    return NextResponse.json(formattedListing)
   } catch (error) {
-    console.error("Update listing error:", error)
+    console.error("Error updating listing:", error)
     return NextResponse.json(
       { error: "Failed to update listing" },
       { status: 500 }

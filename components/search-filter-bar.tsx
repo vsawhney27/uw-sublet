@@ -31,6 +31,8 @@ const AMENITIES = [
   "Security System",
 ]
 
+const SEARCH_INPUT_STYLE = "pl-10 w-full h-14 border-2 bg-gray-100 hover:bg-gray-200 focus:bg-white border-gray-300 hover:border-gray-400 focus:border-red-700"
+
 interface SearchFilterBarProps {
   className?: string
   onFilterChange?: (filters: any) => void
@@ -158,11 +160,12 @@ export function SearchFilterBar({ className, onFilterChange, vertical = false }:
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 h-5 w-5" />
                 <Input
-                  className="pl-10 w-full h-12"
-                  placeholder="Search by location, street name, or description..."
+                  type="text"
+                  placeholder="Search by location, amenities, or price..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && applyFilters()}
+                  className={SEARCH_INPUT_STYLE}
                 />
               </div>
             </div>
@@ -315,11 +318,12 @@ export function SearchFilterBar({ className, onFilterChange, vertical = false }:
         <div className="flex-[3] relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 h-5 w-5" />
           <Input
-            className="pl-10 w-full h-12"
-            placeholder="Search by location, street name, or description..."
+            type="text"
+            placeholder="Search by location, amenities, or price..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && applyFilters()}
+            className={SEARCH_INPUT_STYLE}
           />
         </div>
 

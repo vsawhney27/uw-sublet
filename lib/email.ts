@@ -5,11 +5,11 @@ const resend = new Resend(process.env.RESEND_API_KEY)
 
 // Email configuration
 const EMAIL_CONFIG = {
-  from: process.env.EMAIL_FROM || "BadgerSublets <onboarding@resend.dev>",
-  support: process.env.SUPPORT_EMAIL || "veersawhney12345@gmail.com", // Default support email
+  from: "Badger Sublets <support@badgersublets.com>",
+  support: "support@badgersublets.com", // This will redirect to badgersublets@gmail.com in Resend
   testMode: process.env.NODE_ENV === 'development',
   allowedTestEmails: [
-    'veersawhney12345@gmail.com',
+    'badgersublets@gmail.com',
     'support@badgersublets.com',
     // Add any other test email addresses here
   ]

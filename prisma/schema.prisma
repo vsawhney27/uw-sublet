@@ -20,6 +20,7 @@ model User {
   updatedAt         DateTime  @updatedAt
   role              Role      @default(USER)
   listings          Listing[]
+  savedListings     SavedListing[]
   receivedMessages  Message[] @relation("ReceivedMessages")
   sentMessages      Message[] @relation("SentMessages")
   reports           Report[]  @relation("ReportedBy")
@@ -45,6 +46,7 @@ model Listing {
   user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   messages       Message[]
   reports        Report[]
+  savedBy        SavedListing[]
 
   // Room sublet specific fields
   isRoomSublet    Boolean @default(false)
@@ -79,6 +81,17 @@ model Report {
   listingId  String
   listing    Listing      @relation(fields: [listingId], references: [id], onDelete: Cascade)
   reporter   User         @relation("ReportedBy", fields: [reporterId], references: [id], onDelete: Cascade)
+}
+
+model SavedListing {
+  id        String   @id @default(cuid())
+  userId    String
+  listingId String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, listingId])
 }
 
 enum Role {

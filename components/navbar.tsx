@@ -87,7 +87,7 @@ export function Navbar({ user }: NavbarProps) {
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="text-white border-2 border-white hover:bg-red-800 hover:text-black hover:border-black">
+                  <Button variant="ghost" className="text-white border-2 border-white hover:bg-red-800 hover:border-white hover:text-white">
                     <Avatar className="h-8 w-8 mr-2 bg-white text-red-700">
                       <AvatarFallback>{user.name?.[0] || user.email?.[0] || "U"}</AvatarFallback>
                     </Avatar>
@@ -102,7 +102,7 @@ export function Navbar({ user }: NavbarProps) {
                     <Link href="/my-listings" className="w-full text-gray-700">My Listings</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild className="hover:bg-gray-100">
-                    <Link href="/saved" className="w-full text-gray-700">Saved Listings</Link>
+                    <Link href="/saved-listings" className="w-full text-gray-700">Saved Listings</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild className="hover:bg-gray-100">
                     <Link href="/account" className="w-full text-gray-700">Account Settings</Link>

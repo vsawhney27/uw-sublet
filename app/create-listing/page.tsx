@@ -61,7 +61,7 @@ export default function CreateListing() {
     console.log("Form data:", formData);
     console.log("Dates:", { startDate, endDate });
 
-    const missingFields = [];
+    const errors = [];
 
     if (!session?.user) {
       console.log("Validation failed: No user session");
@@ -74,18 +74,18 @@ export default function CreateListing() {
       return false
     }
 
-    if (!formData.title) missingFields.push("Title");
-    if (!formData.description) missingFields.push("Description");
-    if (!formData.rent) missingFields.push("Rent amount");
-    if (!formData.address) missingFields.push("Address");
-    if (!formData.bedrooms) missingFields.push("Number of bedrooms");
-    if (!startDate || !endDate) missingFields.push("Availability dates");
+    if (!formData.title || formData.title.length < 5) errors.push("Title must be at least 5 characters");
+    if (!formData.description || formData.description.length < 20) errors.push("Description must be at least 20 characters");
+    if (!formData.rent) errors.push("Rent amount is required");
+    if (!formData.address || formData.address.length < 5) errors.push("Address must be at least 5 characters");
+    if (!formData.bedrooms) errors.push("Number of bedrooms is required");
+    if (!startDate || !endDate) errors.push("Availability dates are required");
 
-    if (missingFields.length > 0) {
-      console.log("Validation failed: Missing fields:", missingFields);
+    if (errors.length > 0) {
+      console.log("Validation failed:", errors);
       toast({
-        title: "Please Fill All Required Fields",
-        description: `Missing: ${missingFields.join(", ")}`,
+        title: "Please Fix the Following Issues",
+        description: errors.join("\n"),
         variant: "destructive",
       })
       return false
@@ -105,6 +105,21 @@ export default function CreateListing() {
 
     setIsSubmitting(true);
     try {
+      console.log("Submitting form data:", {
+        title: formData.title,
+        description: formData.description,
+        price: Number(formData.rent),
+        address: formData.address,
+        bedrooms: Number(formData.bedrooms),
+        bathrooms: 1,
+        availableFrom: startDate,
+        availableUntil: endDate,
+        amenities: selectedAmenities,
+        images: formData.images,
+        isDraft,
+        published: !isDraft
+      });
+
       const response = await fetch("/api/listings", {
         method: "POST",
         headers: {
@@ -117,16 +132,17 @@ export default function CreateListing() {
           address: formData.address,
           bedrooms: Number(formData.bedrooms),
           bathrooms: 1,
-          availableFrom: startDate!.toISOString(),
-          availableUntil: endDate!.toISOString(),
+          availableFrom: startDate?.toISOString(),
+          availableUntil: endDate?.toISOString(),
           amenities: selectedAmenities,
           images: formData.images,
           isDraft: isDraft,
-          published: !isDraft // If it's a draft, it's not published
+          published: !isDraft
         }),
       });
 
       const data = await response.json();
+      console.log("API Response:", data);
 
       if (!response.ok) {
         throw new Error(data.error || "Failed to create listing");

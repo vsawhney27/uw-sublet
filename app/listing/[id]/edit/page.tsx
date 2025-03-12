@@ -16,6 +16,7 @@ import { format } from "date-fns"
 import { CalendarIcon, Upload, Loader2 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import Link from "next/link"
+import { use } from "react"
 
 export default function EditListingPage({
   params,
@@ -30,6 +31,7 @@ export default function EditListingPage({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([])
+  const listingId = use(Promise.resolve(params.id))
   const [formData, setFormData] = useState({
     title: "",
     rent: "",
@@ -50,7 +52,7 @@ export default function EditListingPage({
 
     const fetchListing = async () => {
       try {
-        const response = await fetch(`/api/listings/${params.id}`)
+        const response = await fetch(`/api/listings/${listingId}`)
         const data = await response.json()
 
         if (!response.ok) {
@@ -85,7 +87,7 @@ export default function EditListingPage({
     }
 
     fetchListing()
-  }, [params.id, router, status, toast])
+  }, [listingId, router, status, toast])
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
@@ -137,7 +139,7 @@ export default function EditListingPage({
 
     setIsSubmitting(true)
     try {
-      const response = await fetch(`/api/listings/${params.id}`, {
+      const response = await fetch(`/api/listings/${listingId}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -171,7 +173,7 @@ export default function EditListingPage({
           : "Your changes have been saved successfully.",
       })
 
-      router.push(formData.isDraft && !publishAfterEdit ? "/account" : `/listing/${params.id}`)
+      router.push(formData.isDraft && !publishAfterEdit ? "/account" : `/listing/${listingId}`)
     } catch (error) {
       console.error("Update error:", error)
       toast({
@@ -207,7 +209,7 @@ export default function EditListingPage({
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4">
       <div className="container mx-auto max-w-3xl">
-        <Link href={`/listing/${params.id}`} className="text-red-700 hover:underline mb-6 inline-block">
+        <Link href={`/listing/${listingId}`} className="text-red-700 hover:underline mb-6 inline-block">
           &larr; Back to listing
         </Link>
 
@@ -425,7 +427,7 @@ export default function EditListingPage({
                 </Button>
               )}
             </div>
-            <Link href={`/listing/${params.id}/delete`}>
+            <Link href={`/listing/${listingId}/delete`}>
               <Button variant="destructive" disabled={isSubmitting}>
                 Delete Listing
               </Button>

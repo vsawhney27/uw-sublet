@@ -19,6 +19,8 @@ type ListingWithDates = Listing & {
   availableFrom: string
   availableUntil: string
   createdAt: string
+  totalRoommates: number | undefined
+  roommateGenders: string | undefined
 }
 
 export default function AccountPage() {
@@ -26,6 +28,7 @@ export default function AccountPage() {
   const router = useRouter()
   const { toast } = useToast()
   const [listings, setListings] = useState<ListingWithDates[]>([])
+  const [savedListings, setSavedListings] = useState<ListingWithDates[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isUpdating, setIsUpdating] = useState(false)
   const [profileData, setProfileData] = useState({
@@ -58,11 +61,32 @@ export default function AccountPage() {
 
     const fetchListings = async () => {
       try {
-        const response = await fetch("/api/listings?userOnly=true")
-        const data = await response.json()
-        setListings(data.listings)
+        console.log("Fetching user listings...");
+        const [listingsResponse, savedResponse] = await Promise.all([
+          fetch("/api/listings?userOnly=true"),
+          fetch("/api/saved-listings")
+        ])
+        
+        if (!listingsResponse.ok) {
+          throw new Error("Failed to fetch listings")
+        }
+        
+        const listingsData = await listingsResponse.json()
+        console.log("Fetched listings:", listingsData.listings);
+        setListings(listingsData.listings)
+        
+        if (savedResponse.ok) {
+          const savedData = await savedResponse.json()
+          console.log("Fetched saved listings:", savedData.listings);
+          setSavedListings(savedData.listings)
+        }
       } catch (error) {
         console.error("Error fetching listings:", error)
+        toast({
+          title: "Error",
+          description: "Failed to load your listings. Please try again.",
+          variant: "destructive",
+        })
       } finally {
         setIsLoading(false)
       }
@@ -229,7 +253,7 @@ export default function AccountPage() {
   }
 
   const drafts = listings.filter(listing => listing.isDraft)
-  const published = listings.filter(listing => !listing.isDraft)
+  const published = listings.filter(listing => listing.published && !listing.isDraft)
 
   return (
     <div className="min-h-screen bg-gray-50 py-12">
@@ -238,29 +262,75 @@ export default function AccountPage() {
           <div className="flex items-center space-x-4 mb-8">
             <Avatar className="h-20 w-20">
               <AvatarImage src={session?.user?.image || ""} />
-              <AvatarFallback>{session?.user?.name?.[0] || "U"}</AvatarFallback>
+              <AvatarFallback>{session?.user?.name?.[0]?.toUpperCase()}</AvatarFallback>
             </Avatar>
             <div>
-              <h1 className="text-2xl font-bold">{session?.user?.name}</h1>
-              <p className="text-gray-600">{session?.user?.email}</p>
+              <h1 className="text-2xl font-bold text-gray-900">{session?.user?.name}</h1>
+              <p className="text-gray-500">{session?.user?.email}</p>
             </div>
           </div>
 
-          <Tabs defaultValue="profile" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="profile" className="flex items-center space-x-2">
-                <User className="h-4 w-4" />
-                <span>Profile</span>
-              </TabsTrigger>
-              <TabsTrigger value="security" className="flex items-center space-x-2">
-                <Shield className="h-4 w-4" />
-                <span>Security</span>
-              </TabsTrigger>
-              <TabsTrigger value="listings" className="flex items-center space-x-2">
-                <ListFilter className="h-4 w-4" />
-                <span>Listings</span>
-              </TabsTrigger>
+          <Tabs defaultValue="listings" className="space-y-6">
+            <TabsList className="grid w-full grid-cols-4 lg:w-[400px]">
+              <TabsTrigger value="listings">My Listings</TabsTrigger>
+              <TabsTrigger value="saved">Saved</TabsTrigger>
+              <TabsTrigger value="profile">Profile</TabsTrigger>
+              <TabsTrigger value="security">Security</TabsTrigger>
             </TabsList>
+
+            <TabsContent value="listings" className="space-y-6">
+              <div className="grid gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Published Listings ({published.length})</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      {published.map((listing) => (
+                        <ListingCard key={listing.id} {...listing} />
+                      ))}
+                      {published.length === 0 && (
+                        <p className="text-gray-500 col-span-2">No published listings yet.</p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Draft Listings ({drafts.length})</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      {drafts.map((listing) => (
+                        <ListingCard key={listing.id} {...listing} />
+                      ))}
+                      {drafts.length === 0 && (
+                        <p className="text-gray-500 col-span-2">No draft listings.</p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="saved" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Saved Listings ({savedListings.length})</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {savedListings.map((listing) => (
+                      <ListingCard key={listing.id} {...listing} />
+                    ))}
+                    {savedListings.length === 0 && (
+                      <p className="text-gray-500 col-span-2">No saved listings yet.</p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
 
             <TabsContent value="profile">
               <Card>
@@ -421,73 +491,6 @@ export default function AccountPage() {
                   </Dialog>
                 </CardContent>
               </Card>
-            </TabsContent>
-
-            <TabsContent value="listings">
-              <div className="space-y-6">
-                <div>
-                  <h2 className="text-xl font-semibold mb-4">Draft Listings</h2>
-                  {drafts.length === 0 ? (
-                    <Card>
-                      <CardContent className="p-6">
-                        <p className="text-gray-500 text-center">No draft listings</p>
-                      </CardContent>
-                    </Card>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {drafts.map((listing) => (
-                        <ListingCard
-                          key={listing.id}
-                          id={listing.id}
-                          title={listing.title}
-                          description={listing.description}
-                          address={listing.address}
-                          price={listing.price}
-                          bedrooms={listing.bedrooms}
-                          bathrooms={listing.bathrooms}
-                          amenities={listing.amenities}
-                          availableFrom={listing.availableFrom}
-                          availableUntil={listing.availableUntil}
-                          images={listing.images}
-                          createdAt={listing.createdAt}
-                          isDraft={true}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <h2 className="text-xl font-semibold mb-4">Published Listings</h2>
-                  {published.length === 0 ? (
-                    <Card>
-                      <CardContent className="p-6">
-                        <p className="text-gray-500 text-center">No published listings</p>
-                      </CardContent>
-                    </Card>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {published.map((listing) => (
-                        <ListingCard
-                          key={listing.id}
-                          id={listing.id}
-                          title={listing.title}
-                          description={listing.description}
-                          address={listing.address}
-                          price={listing.price}
-                          bedrooms={listing.bedrooms}
-                          bathrooms={listing.bathrooms}
-                          amenities={listing.amenities}
-                          availableFrom={listing.availableFrom}
-                          availableUntil={listing.availableUntil}
-                          images={listing.images}
-                          createdAt={listing.createdAt}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
             </TabsContent>
           </Tabs>
         </div>

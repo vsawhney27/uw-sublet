@@ -9,13 +9,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel"
-import { MapPin, Calendar, DollarSign, Mail, MessageCircle, Flag, Heart } from "lucide-react"
+import { MapPin, Calendar, DollarSign, Mail, MessageCircle, Flag, Heart, AlertCircle } from "lucide-react"
 import { type Listing, User } from "@prisma/client"
 import { MessageForm } from "@/components/message-form"
 import { ReportForm } from "@/components/report-form"
 import { EmailForm } from "@/components/email-form"
 import { Map } from "@/components/map"
 import { format } from "date-fns"
+import { useToast } from "@/components/ui/use-toast"
+import { useRouter } from "next/navigation"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 type ListingWithUser = Listing & {
   user: Pick<User, "id" | "name" | "email" | "image">
@@ -39,6 +42,11 @@ export function ListingDetail({ listing, currentUser, onFavorite, isFavorite = f
   const [showEmailForm, setShowEmailForm] = useState(false)
   const [showReportForm, setShowReportForm] = useState(false)
   const [showImageDialog, setShowImageDialog] = useState(false)
+  const [isPublishing, setIsPublishing] = useState(false)
+  const [isSavingDraft, setIsSavingDraft] = useState(false)
+  const [error, setError] = useState("")
+  const { toast } = useToast()
+  const router = useRouter()
 
   const {
     id,
@@ -87,8 +95,106 @@ export function ListingDetail({ listing, currentUser, onFavorite, isFavorite = f
     }
   }
 
+  const handlePublish = async () => {
+    if (!currentUser) {
+      setError("You must be logged in to publish a listing")
+      return
+    }
+
+    try {
+      setIsPublishing(true)
+      setError("")
+
+      const response = await fetch(`/api/listings/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          published: true,
+          isDraft: false,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to publish listing")
+      }
+
+      toast({
+        title: "Success",
+        description: "Listing published successfully!",
+      })
+      router.refresh()
+    } catch (error) {
+      console.error("Error publishing listing:", error)
+      setError(error instanceof Error ? error.message : "Failed to publish listing")
+      toast({
+        title: "Error",
+        description: "Failed to publish listing. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsPublishing(false)
+    }
+  }
+
+  const handleSaveAsDraft = async () => {
+    if (!currentUser) {
+      setError("You must be logged in to save as draft")
+      return
+    }
+
+    try {
+      setIsSavingDraft(true)
+      setError("")
+
+      const response = await fetch(`/api/listings/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          published: false,
+          isDraft: true,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to save as draft")
+      }
+
+      toast({
+        title: "Success",
+        description: "Listing saved as draft!",
+      })
+      router.refresh()
+    } catch (error) {
+      console.error("Error saving as draft:", error)
+      setError(error instanceof Error ? error.message : "Failed to save as draft")
+      toast({
+        title: "Error",
+        description: "Failed to save as draft. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSavingDraft(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
+      {error && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
       <div className="flex justify-between items-center">
         <Link href="/listings" className="text-red-700 hover:underline">
           &larr; Back to listings
@@ -330,6 +436,7 @@ export function ListingDetail({ listing, currentUser, onFavorite, isFavorite = f
           <EmailForm 
             receiverEmail={user.email} 
             listingTitle={title}
+            isSupport={false}
           />
         </DialogContent>
       </Dialog>

@@ -1,9 +1,11 @@
 import Link from "next/link"
 import { formatDistanceToNow } from "date-fns"
-import { MapPin, Calendar, User, Heart, Bed, Bath, Users } from "lucide-react"
+import { MapPin, Calendar, User, Bookmark, Bed, Bath, Users } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { useToast } from "@/components/ui/use-toast"
+import { useState, useEffect } from "react"
 import type { Listing, User as UserType } from "@prisma/client"
 import { cn } from "@/lib/utils"
 
@@ -29,6 +31,7 @@ interface ListingCardProps {
   compact?: boolean
   createdAt: Date | string
   isDraft?: boolean
+  isSaved?: boolean
 }
 
 export function ListingCard({
@@ -49,8 +52,12 @@ export function ListingCard({
   compact,
   createdAt,
   isDraft = false,
+  isSaved = false,
 }: ListingCardProps) {
-  // Format dates with error handling
+  const { toast } = useToast()
+  const [saved, setSaved] = useState(isSaved)
+  const [isLoading, setIsLoading] = useState(false)
+
   const formatDate = (dateString: string) => {
     if (!dateString) return "Date not set";
     try {
@@ -78,6 +85,84 @@ export function ListingCard({
     }
   };
 
+  const handleSave = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    
+    try {
+      setIsLoading(true)
+      const endpoint = saved ? `/api/saved-listings/${id}` : "/api/saved-listings"
+      const response = await fetch(endpoint, {
+        method: saved ? "DELETE" : "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        ...(saved ? {} : { body: JSON.stringify({ listingId: id }) }),
+      })
+
+      if (response.status === 401) {
+        window.location.href = "/login"
+        return
+      }
+
+      const data = await response.json()
+      
+      if (!response.ok) {
+        if (response.status === 400 && data.error === "Listing already saved") {
+          setSaved(true)
+          toast({
+            title: "Already Saved",
+            description: "This listing is already in your saved listings.",
+          })
+          return
+        }
+        throw new Error(data.error || "Failed to save listing")
+      }
+
+      const newSavedState = !saved
+      setSaved(newSavedState)
+      toast({
+        title: newSavedState ? "Listing Saved" : "Listing Unsaved",
+        description: newSavedState ? "The listing has been added to your saved listings." : "The listing has been removed from your saved listings.",
+      })
+
+      const listingResponse = await fetch(`/api/listings/${id}`)
+      if (listingResponse.ok) {
+        const listingData = await listingResponse.json()
+        setSaved(listingData.listing.isSaved)
+      }
+    } catch (error: any) {
+      console.error("Error saving listing:", error)
+      toast({
+        title: "Error",
+        description: error.message || `Failed to ${saved ? "unsave" : "save"} listing. Please try again.`,
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    setSaved(isSaved)
+  }, [isSaved])
+
+  useEffect(() => {
+    const fetchSavedState = async () => {
+      try {
+        const response = await fetch(`/api/listings/${id}`)
+        if (response.ok) {
+          const data = await response.json()
+          setSaved(data.listing.isSaved)
+        }
+      } catch (error) {
+        console.error("Error fetching saved state:", error)
+      }
+    }
+
+    fetchSavedState()
+  }, [id])
+
   const formattedAvailableFrom = formatDate(availableFrom);
   const formattedAvailableUntil = formatDate(availableUntil);
   const timeAgo = getTimeAgo(createdAt);
@@ -101,6 +186,15 @@ export function ListingCard({
               </Badge>
             )}
           </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute top-2 right-2 bg-white/80 backdrop-blur-sm hover:bg-white/90"
+            onClick={handleSave}
+            disabled={isLoading}
+          >
+            <Bookmark className={cn("h-5 w-5", saved ? "fill-yellow-400 text-yellow-400" : "text-gray-500")} />
+          </Button>
         </div>
         <CardContent className="p-4">
           <div className="flex items-start justify-between gap-2">
