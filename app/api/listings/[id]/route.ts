@@ -5,36 +5,18 @@ import { getCurrentUser, isAdmin } from "@/lib/auth"
 
 // Validation schema for updating a listing
 const updateListingSchema = z.object({
-  title: z.string().min(5, "Title must be at least 5 characters").optional(),
-  description: z.string().min(20, "Description must be at least 20 characters").optional(),
-  price: z.number().positive("Price must be positive").optional(),
-  address: z.string().min(5, "Address must be at least 5 characters").optional(),
-  bedrooms: z.number().int().min(0, "Bedrooms must be 0 or more").optional(),
-  bathrooms: z.number().min(0.5, "Bathrooms must be 0.5 or more").optional(),
-  availableFrom: z
-    .string()
-    .refine((date) => !isNaN(Date.parse(date)), {
-      message: "Invalid date format for availableFrom",
-    })
-    .optional(),
-  availableUntil: z
-    .string()
-    .refine((date) => !isNaN(Date.parse(date)), {
-      message: "Invalid date format for availableUntil",
-    })
-    .optional(),
-  amenities: z.array(z.string()).optional(),
-  images: z.array(z.string()).optional(),
+  title: z.string().min(3, "Title must be at least 3 characters").optional(),
+  description: z.string().min(10, "Description must be at least 10 characters").optional(),
+  price: z.number().min(0, "Price must be non-negative").optional(),
   published: z.boolean().optional(),
+  isDraft: z.boolean().optional(),
 })
 
 // GET listing by ID
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest) {
   try {
-    const { id } = params
+    // Extract ID from URL using Next.js conventions
+    const id = request.nextUrl.pathname.split("/").pop()
 
     if (!id) {
       return NextResponse.json(
@@ -72,13 +54,11 @@ export async function GET(
   }
 }
 
-// PUT update listing
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+// PUT update a listing
+export async function PUT(request: NextRequest) {
   try {
-    const { id } = params
+    // Extract ID from URL using Next.js conventions
+    const id = request.nextUrl.pathname.split("/").pop()
 
     if (!id) {
       return NextResponse.json(
@@ -87,44 +67,16 @@ export async function PUT(
       )
     }
 
-    // Get request body
-    const body = await request.json()
-    const {
-      title,
-      description,
-      price,
-      address,
-      startDate,
-      endDate,
-      images,
-      published,
-      isDraft,
-    } = body
-
-    // Validate required fields
-    if (!title || !description || !price || !address || !startDate || !endDate) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      )
+    // Check if user is authenticated
+    const user = await getCurrentUser()
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
-
-    // Check if user is admin
-    const userIsAdmin = await isAdmin()
 
     // Get listing
     const listing = await prisma.listing.findUnique({
       where: { id },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            image: true,
-          },
-        },
-      },
+      select: { userId: true },
     })
 
     if (!listing) {
@@ -134,19 +86,30 @@ export async function PUT(
       )
     }
 
+    // Check if user owns the listing
+    if (listing.userId !== user.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+
+    const body = await request.json()
+
+    // Validate input
+    const result = updateListingSchema.safeParse(body)
+    if (!result.success) {
+      return NextResponse.json({ error: result.error.errors[0].message }, { status: 400 })
+    }
+
+    const { title, description, price, published, isDraft } = result.data
+
     // Update listing
     const updatedListing = await prisma.listing.update({
       where: { id },
       data: {
-        title,
-        description,
-        price,
-        address,
-        availableFrom: new Date(startDate),
-        availableUntil: new Date(endDate),
-        images,
-        published: userIsAdmin ? published : listing.published,
-        isDraft,
+        ...(title && { title }),
+        ...(description && { description }),
+        ...(price !== undefined && { price }),
+        ...(published !== undefined && { published }),
+        ...(isDraft !== undefined && { isDraft }),
       },
       include: {
         user: {
@@ -168,18 +131,41 @@ export async function PUT(
 }
 
 // DELETE listing by ID
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(request: NextRequest) {
   try {
-    const { id } = params
+    // Extract ID from URL using Next.js conventions
+    const id = request.nextUrl.pathname.split("/").pop()
 
     if (!id) {
       return NextResponse.json(
         { error: "Missing listing ID" },
         { status: 400 }
       )
+    }
+
+    // Check if user is authenticated
+    const user = await getCurrentUser()
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    // Get listing
+    const listing = await prisma.listing.findUnique({
+      where: { id },
+      select: { userId: true },
+    })
+
+    if (!listing) {
+      return NextResponse.json(
+        { error: "Listing not found" },
+        { status: 404 }
+      )
+    }
+
+    // Check if user owns the listing or is admin
+    const userIsAdmin = await isAdmin()
+    if (listing.userId !== user.id && !userIsAdmin) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
     // Delete listing
@@ -194,13 +180,11 @@ export async function DELETE(
   }
 }
 
-// PATCH update listing status
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+// PATCH update listing status (admin only)
+export async function PATCH(request: NextRequest) {
   try {
-    const { id } = params
+    // Extract ID from URL using Next.js conventions
+    const id = request.nextUrl.pathname.split("/").pop()
 
     if (!id) {
       return NextResponse.json(
@@ -209,14 +193,25 @@ export async function PATCH(
       )
     }
 
-    // Get request body
-    const body = await request.json()
-    const { published } = body
+    // Check if user is authenticated and is an admin
+    const user = await getCurrentUser()
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
 
-    // Check if user is admin
     const userIsAdmin = await isAdmin()
     if (!userIsAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+
+    const body = await request.json()
+    const { published } = body
+
+    if (published === undefined) {
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 }
+      )
     }
 
     // Update listing status

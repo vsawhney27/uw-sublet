@@ -1,49 +1,52 @@
 import { type NextRequest, NextResponse } from "next/server"
-import prisma from "@/lib/prisma"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { prisma } from "@/lib/prisma"
+import { getCurrentUser } from "@/lib/auth"
 
-export async function DELETE(
-  request: Request,
-  context: { params: { id: string } }
-) {
+// DELETE saved listing by ID
+export async function DELETE(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user) {
+    // Extract ID from URL using Next.js conventions
+    const id = request.nextUrl.pathname.split("/").pop()
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "Missing saved listing ID" },
+        { status: 400 }
+      )
+    }
+
+    // Check if user is authenticated
+    const user = await getCurrentUser()
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const id = context.params.id
-
-    if (!id) {
-      return NextResponse.json({ error: "Listing ID is required" }, { status: 400 })
-    }
-
-    // Check if the listing exists and is saved by the user
-    const savedListing = await prisma.savedListing.findFirst({
-      where: {
-        listingId: id,
-        userId: session.user.id
-      }
+    // Get saved listing
+    const savedListing = await prisma.savedListing.findUnique({
+      where: { id },
+      select: { userId: true },
     })
 
     if (!savedListing) {
-      return NextResponse.json({ error: "Listing not found in saved listings" }, { status: 404 })
+      return NextResponse.json(
+        { error: "Saved listing not found" },
+        { status: 404 }
+      )
     }
 
-    // Delete the saved listing
+    // Check if user owns the saved listing
+    if (savedListing.userId !== user.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+
+    // Delete saved listing
     await prisma.savedListing.delete({
-      where: {
-        id: savedListing.id
-      }
+      where: { id },
     })
 
-    return NextResponse.json({ message: "Listing unsaved successfully" })
+    return NextResponse.json({ success: true })
   } catch (error) {
-    console.error("Error unsaving listing:", error)
-    return NextResponse.json(
-      { error: "Failed to unsave listing" },
-      { status: 500 }
-    )
+    console.error("Delete saved listing error:", error)
+    return NextResponse.json({ error: "Something went wrong" }, { status: 500 })
   }
 } 

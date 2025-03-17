@@ -8,19 +8,11 @@ const updateReportSchema = z.object({
   status: z.enum(["PENDING", "RESOLVED", "DISMISSED"]),
 })
 
-type Context = {
-  params: {
-    id: string
-  }
-}
-
 // GET report by ID
-export async function GET(
-  request: Request | NextRequest,
-  context: Context
-) {
+export async function GET(request: NextRequest) {
   try {
-    const { id } = context.params
+    // Extract ID from URL using Next.js conventions
+    const id = request.nextUrl.pathname.split("/").pop()
 
     if (!id) {
       return NextResponse.json(
@@ -82,12 +74,10 @@ export async function GET(
 }
 
 // PUT update report status
-export async function PUT(
-  request: Request | NextRequest,
-  context: Context
-) {
+export async function PUT(request: NextRequest) {
   try {
-    const { id } = context.params
+    // Extract ID from URL using Next.js conventions
+    const id = request.nextUrl.pathname.split("/").pop()
 
     if (!id) {
       return NextResponse.json(

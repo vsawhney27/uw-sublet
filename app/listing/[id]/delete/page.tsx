@@ -1,91 +1,68 @@
-"use client"
+import { redirect } from "next/navigation"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
+import { prisma } from "@/lib/prisma"
+import { DeleteListingForm } from "@/components/forms/DeleteListingForm"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import Link from "next/link"
-import { Loader2 } from "lucide-react"
-import { useToast } from "@/components/ui/use-toast"
+type ListingData = {
+  listing: {
+    id: string
+    title: string
+    userId: string
+  }
+} | {
+  redirect: string
+}
 
-export default function DeleteListingPage({
-  params,
-}: {
+async function getListingData(id: string): Promise<ListingData> {
+  const session = await getServerSession(authOptions)
+
+  if (!session?.user) {
+    return { redirect: "/auth/signin" }
+  }
+
+  const listing = await prisma.listing.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      title: true,
+      userId: true,
+    },
+  })
+
+  if (!listing) {
+    return { redirect: "/404" }
+  }
+
+  // Check if user owns the listing or is admin
+  const userIsAdmin = session.user.role === "ADMIN"
+  if (listing.userId !== session.user.id && !userIsAdmin) {
+    return { redirect: "/403" }
+  }
+
+  return { listing }
+}
+
+type Props = {
   params: { id: string }
-}) {
-  const router = useRouter()
-  const { toast } = useToast()
-  const [isDeleting, setIsDeleting] = useState(false)
+}
 
-  const handleDelete = async () => {
-    setIsDeleting(true)
-    try {
-      const response = await fetch(`/api/listings/${params.id}`, {
-        method: "DELETE",
-      })
+export default async function DeleteListingPage(props: Props) {
+  const { params } = props
 
-      const data = await response.json()
+  if (!params?.id) {
+    redirect("/404")
+  }
 
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to delete listing")
-      }
+  const result = await getListingData(params.id)
 
-      toast({
-        title: "Listing Deleted",
-        description: "Your listing has been successfully deleted.",
-      })
-
-      router.push("/account")
-    } catch (error) {
-      console.error("Delete error:", error)
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to delete listing",
-        variant: "destructive",
-      })
-    } finally {
-      setIsDeleting(false)
-    }
+  if ("redirect" in result) {
+    redirect(result.redirect)
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4">
-      <div className="container mx-auto max-w-md">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-2xl font-bold text-center">Delete Listing</CardTitle>
-            <CardDescription className="text-center">
-              Are you sure you want to delete this listing? This action cannot be undone.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="text-center">
-            <p className="text-gray-500">
-              All information associated with this listing will be permanently removed.
-            </p>
-          </CardContent>
-          <CardFooter className="flex justify-center space-x-4">
-            <Link href={`/listing/${params.id}`}>
-              <Button variant="outline" disabled={isDeleting}>
-                Cancel
-              </Button>
-            </Link>
-            <Button
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={isDeleting}
-            >
-              {isDeleting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Deleting...
-                </>
-              ) : (
-                "Delete Listing"
-              )}
-            </Button>
-          </CardFooter>
-        </Card>
-      </div>
+    <div className="container max-w-2xl py-6">
+      <DeleteListingForm listing={result.listing} />
     </div>
   )
 } 

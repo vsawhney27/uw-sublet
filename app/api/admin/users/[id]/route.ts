@@ -10,12 +10,10 @@ const updateUserSchema = z.object({
 })
 
 // GET user by ID
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest) {
   try {
-    const { id } = params
+    // Extract ID from URL using Next.js conventions
+    const id = request.nextUrl.pathname.split("/").pop()
 
     if (!id) {
       return NextResponse.json(
@@ -74,12 +72,10 @@ export async function GET(
 }
 
 // PUT update a user (admin only)
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PUT(request: NextRequest) {
   try {
-    const { id } = params
+    // Extract ID from URL using Next.js conventions
+    const id = request.nextUrl.pathname.split("/").pop()
 
     // Check if user is authenticated and is an admin
     const user = await getCurrentUser()
@@ -131,12 +127,10 @@ export async function PUT(
 }
 
 // DELETE user by ID
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(request: NextRequest) {
   try {
-    const { id } = params
+    // Extract ID from URL using Next.js conventions
+    const id = request.nextUrl.pathname.split("/").pop()
 
     if (!id) {
       return NextResponse.json(
