@@ -9,47 +9,64 @@ const updateUserSchema = z.object({
   role: z.enum(["USER", "ADMIN"]).optional(),
 })
 
-// GET a single user by ID (admin only)
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+// GET user by ID
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
     const { id } = params
 
-    // Check if user is authenticated and is an admin
-    const user = await getCurrentUser(req)
+    if (!id) {
+      return NextResponse.json(
+        { error: "Missing user ID" },
+        { status: 400 }
+      )
+    }
 
+    // Check if user is authenticated and is an admin
+    const user = await getCurrentUser()
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const userIsAdmin = await isAdmin(req)
-
+    const userIsAdmin = await isAdmin()
     if (!userIsAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    // Get user
+    // Get user with their listings and reports
     const targetUser = await prisma.user.findUnique({
       where: { id },
       include: {
-        listings: true,
-        _count: {
+        listings: {
           select: {
-            sentMessages: true,
-            receivedMessages: true,
-            reports: true,
+            id: true,
+            title: true,
+            published: true,
+            isDraft: true,
+            createdAt: true,
+          },
+        },
+        reports: {
+          select: {
+            id: true,
+            reason: true,
+            status: true,
+            createdAt: true,
           },
         },
       },
     })
 
     if (!targetUser) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 })
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 404 }
+      )
     }
 
-    // Remove password from response
-    const { password, ...userWithoutPassword } = targetUser
-
-    return NextResponse.json({ user: userWithoutPassword })
+    return NextResponse.json(targetUser)
   } catch (error) {
     console.error("Get user error:", error)
     return NextResponse.json({ error: "Something went wrong" }, { status: 500 })
@@ -57,24 +74,27 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 }
 
 // PUT update a user (admin only)
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
     const { id } = params
 
     // Check if user is authenticated and is an admin
-    const user = await getCurrentUser(req)
+    const user = await getCurrentUser()
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const userIsAdmin = await isAdmin(req)
+    const userIsAdmin = await isAdmin()
 
     if (!userIsAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    const body = await req.json()
+    const body = await request.json()
 
     // Validate input
     const result = updateUserSchema.safeParse(body)
@@ -110,22 +130,41 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   }
 }
 
-// DELETE a user (admin only)
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+// DELETE user by ID
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
-    const userId = params.id
-    
-    // Delete the user
+    const { id } = params
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "Missing user ID" },
+        { status: 400 }
+      )
+    }
+
+    // Check if user is authenticated and is an admin
+    const user = await getCurrentUser()
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const userIsAdmin = await isAdmin()
+    if (!userIsAdmin) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+
+    // Delete user and all their related data
     await prisma.user.delete({
-      where: {
-        id: userId,
-      },
+      where: { id },
     })
 
-    return NextResponse.json({ message: "User deleted successfully" })
+    return NextResponse.json({ success: true })
   } catch (error) {
-    console.error("Error deleting user:", error)
-    return NextResponse.json({ error: "Failed to delete user" }, { status: 500 })
+    console.error("Delete user error:", error)
+    return NextResponse.json({ error: "Something went wrong" }, { status: 500 })
   }
 }
 

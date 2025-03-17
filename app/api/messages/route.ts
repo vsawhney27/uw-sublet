@@ -16,8 +16,7 @@ const messageSchema = z.object({
 export async function GET(req: NextRequest) {
   try {
     // Check if user is authenticated
-    const user = await getCurrentUser(req)
-
+    const user = await getCurrentUser()
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
@@ -77,11 +76,11 @@ export async function GET(req: NextRequest) {
         },
       },
       orderBy: {
-        createdAt: "asc",
+        createdAt: "desc",
       },
     })
 
-    return NextResponse.json({ messages })
+    return NextResponse.json(messages)
   } catch (error) {
     console.error("Get messages error:", error)
     return NextResponse.json({ error: "Something went wrong" }, { status: 500 })
@@ -89,58 +88,24 @@ export async function GET(req: NextRequest) {
 }
 
 // POST create a new message
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    // Get session and validate user
-    const session = await getServerSession(authOptions)
-    
-    if (!session?.user?.email) {
-      console.error("No authenticated user found")
-      return NextResponse.json({ error: "You must be logged in to send messages" }, { status: 401 })
+    // Check if user is authenticated
+    const user = await getCurrentUser()
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Parse and validate request body
+    // Get request body
     const body = await req.json()
-    const result = messageSchema.safeParse(body)
+    const { receiverId, listingId, content } = body
 
-    if (!result.success) {
-      const errorMessage = result.error.errors[0].message
-      console.error("Message validation error:", errorMessage)
-      return NextResponse.json({ error: errorMessage }, { status: 400 })
-    }
-
-    const { content, receiverId, listingId } = result.data
-
-    // Get sender
-    const sender = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        emailVerified: true,
-      }
-    })
-
-    if (!sender) {
-      console.error("Sender not found:", session.user.email)
-      return NextResponse.json({ error: "User account not found" }, { status: 404 })
-    }
-
-    if (!sender.emailVerified) {
-      console.error("Sender email not verified:", session.user.email)
-      return NextResponse.json({ error: "Please verify your email before sending messages" }, { status: 403 })
-    }
-
-    // Check if receiver exists
-    const receiver = await prisma.user.findUnique({
-      where: { id: receiverId },
-      select: { id: true, email: true }
-    })
-
-    if (!receiver) {
-      console.error("Receiver not found:", receiverId)
-      return NextResponse.json({ error: "Recipient not found" }, { status: 404 })
+    // Validate required fields
+    if (!receiverId || !listingId || !content) {
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 }
+      )
     }
 
     // Check if listing exists if listingId is provided
@@ -159,10 +124,10 @@ export async function POST(req: Request) {
     // Create message
     const message = await prisma.message.create({
       data: {
-        content,
-        senderId: sender.id,
+        senderId: user.id,
         receiverId,
         listingId,
+        content,
       },
       include: {
         sender: {
@@ -171,7 +136,7 @@ export async function POST(req: Request) {
             name: true,
             email: true,
             image: true,
-          }
+          },
         },
         receiver: {
           select: {
@@ -179,9 +144,16 @@ export async function POST(req: Request) {
             name: true,
             email: true,
             image: true,
-          }
-        }
-      }
+          },
+        },
+        listing: {
+          select: {
+            id: true,
+            title: true,
+            images: true,
+          },
+        },
+      },
     })
 
     console.log("Message sent successfully:", {
@@ -193,11 +165,8 @@ export async function POST(req: Request) {
 
     return NextResponse.json(message)
   } catch (error) {
-    console.error("Error in message POST handler:", error)
-    return NextResponse.json(
-      { error: "Failed to send message. Please try again." },
-      { status: 500 }
-    )
+    console.error("Create message error:", error)
+    return NextResponse.json({ error: "Something went wrong" }, { status: 500 })
   }
 }
 

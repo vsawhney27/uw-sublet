@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import prisma from "@/lib/prisma"
+import { prisma } from "@/lib/prisma"
 import { getCurrentUser, isAdmin } from "@/lib/auth"
 
 export const dynamic = 'force-dynamic'
@@ -8,13 +8,13 @@ export const dynamic = 'force-dynamic'
 export async function GET(req: NextRequest) {
   try {
     // Check if user is authenticated and is an admin
-    const user = await getCurrentUser(req)
+    const user = await getCurrentUser()
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const userIsAdmin = await isAdmin(req)
+    const userIsAdmin = await isAdmin()
 
     if (!userIsAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })

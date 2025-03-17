@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
-import prisma from "@/lib/prisma"
+import { prisma } from "@/lib/prisma"
 import { getCurrentUser, isAdmin } from "@/lib/auth"
 
 // Validation schema for updating a report
@@ -8,26 +8,39 @@ const updateReportSchema = z.object({
   status: z.enum(["PENDING", "RESOLVED", "DISMISSED"]),
 })
 
-// GET a single report by ID (admin only)
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+type Context = {
+  params: {
+    id: string
+  }
+}
+
+// GET report by ID
+export async function GET(
+  request: Request | NextRequest,
+  context: Context
+) {
   try {
-    // Await params before destructuring
-    const { id } = await params
+    const { id } = context.params
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "Missing report ID" },
+        { status: 400 }
+      )
+    }
 
     // Check if user is authenticated and is an admin
-    const user = await getCurrentUser(req)
-
+    const user = await getCurrentUser()
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const userIsAdmin = await isAdmin(req)
-
+    const userIsAdmin = await isAdmin()
     if (!userIsAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    // Get report
+    // Get report with user and listing info
     const report = await prisma.report.findUnique({
       where: { id },
       include: {
@@ -55,36 +68,47 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     })
 
     if (!report) {
-      return NextResponse.json({ error: "Report not found" }, { status: 404 })
+      return NextResponse.json(
+        { error: "Report not found" },
+        { status: 404 }
+      )
     }
 
-    return NextResponse.json({ report })
+    return NextResponse.json(report)
   } catch (error) {
     console.error("Get report error:", error)
     return NextResponse.json({ error: "Something went wrong" }, { status: 500 })
   }
 }
 
-// PUT update a report status (admin only)
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+// PUT update report status
+export async function PUT(
+  request: Request | NextRequest,
+  context: Context
+) {
   try {
-    // Await params before destructuring
-    const { id } = await params
+    const { id } = context.params
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "Missing report ID" },
+        { status: 400 }
+      )
+    }
 
     // Check if user is authenticated and is an admin
-    const user = await getCurrentUser(req)
-
+    const user = await getCurrentUser()
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const userIsAdmin = await isAdmin(req)
-
+    const userIsAdmin = await isAdmin()
     if (!userIsAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    const body = await req.json()
+    // Get request body
+    const body = await request.json()
 
     // Validate input
     const result = updateReportSchema.safeParse(body)
@@ -94,7 +118,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 
     const { status } = result.data
 
-    // Update report
+    // Update report status
     const updatedReport = await prisma.report.update({
       where: { id },
       data: { status },
@@ -122,7 +146,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       },
     })
 
-    return NextResponse.json({ report: updatedReport })
+    return NextResponse.json(updatedReport)
   } catch (error) {
     console.error("Update report error:", error)
     return NextResponse.json({ error: "Something went wrong" }, { status: 500 })

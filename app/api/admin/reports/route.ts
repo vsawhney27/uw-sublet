@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
-import prisma from "@/lib/prisma"
+import { prisma } from "@/lib/prisma"
 import { getCurrentUser, isAdmin, isEmailVerified } from "@/lib/auth"
 
 // Validation schema for creating a report
@@ -14,39 +14,37 @@ const reportSchema = z.object({
 export async function GET(req: NextRequest) {
   try {
     // Check if user is authenticated and is an admin
-    const user = await getCurrentUser(req)
-
+    const user = await getCurrentUser()
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const userIsAdmin = await isAdmin(req)
-
+    const userIsAdmin = await isAdmin()
     if (!userIsAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    // Get all reports with listing and reporter info
+    // Get all reports with user and listing info
     const reports = await prisma.report.findMany({
       include: {
-        listing: {
-          select: {
-            id: true,
-            title: true,
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-              },
-            },
-          },
-        },
         reporter: {
           select: {
             id: true,
             name: true,
             email: true,
+            image: true,
+          },
+        },
+        listing: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                image: true,
+              },
+            },
           },
         },
       },
@@ -62,52 +60,57 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST create a new report
+// POST a new report
 export async function POST(req: NextRequest) {
   try {
-    // Check if user is authenticated and email is verified
-    const user = await getCurrentUser(req)
-
+    // Check if user is authenticated
+    const user = await getCurrentUser()
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const isVerified = await isEmailVerified(req)
-
-    if (!isVerified) {
-      return NextResponse.json({ error: "Email not verified" }, { status: 403 })
-    }
-
+    // Get request body
     const body = await req.json()
+    const { listingId, reason, details } = body
 
-    // Validate input
-    const result = reportSchema.safeParse(body)
-    if (!result.success) {
-      return NextResponse.json({ error: result.error.errors[0].message }, { status: 400 })
-    }
-
-    const { reason, details, listingId } = result.data
-
-    // Check if listing exists
-    const listing = await prisma.listing.findUnique({
-      where: { id: listingId },
-    })
-
-    if (!listing) {
-      return NextResponse.json({ error: "Listing not found" }, { status: 404 })
+    // Validate required fields
+    if (!listingId || !reason) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
     // Create report
     const report = await prisma.report.create({
       data: {
+        listingId,
+        reporterId: user.id,
         reason,
         details,
-        reporterId: user.id,
-        listingId,
+      },
+      include: {
+        reporter: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            image: true,
+          },
+        },
+        listing: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                image: true,
+              },
+            },
+          },
+        },
       },
     })
 
-    return NextResponse.json({ report }, { status: 201 })
+    return NextResponse.json({ report })
   } catch (error) {
     console.error("Create report error:", error)
     return NextResponse.json({ error: "Something went wrong" }, { status: 500 })
