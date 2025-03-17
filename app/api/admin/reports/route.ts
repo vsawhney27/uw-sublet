@@ -26,44 +26,32 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    // Get query parameters
-    const searchParams = req.nextUrl.searchParams
-    const status = searchParams.get("status") || undefined
-
-    // Build where clause
-    const where: any = {}
-
-    if (status) {
-      where.status = status
-    }
-
-    // Get reports
+    // Get all reports with listing and reporter info
     const reports = await prisma.report.findMany({
-      where,
       include: {
-        reporter: {
+        listing: {
           select: {
             id: true,
-            name: true,
-            email: true,
-            image: true,
-          },
-        },
-        listing: {
-          include: {
+            title: true,
             user: {
               select: {
                 id: true,
                 name: true,
                 email: true,
-                image: true,
               },
             },
           },
         },
+        reporter: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
       },
       orderBy: {
-        createdAt: "desc",
+        createdAt: 'desc',
       },
     })
 

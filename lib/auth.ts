@@ -1,19 +1,21 @@
 import { hash, compare } from "bcryptjs"
 import { sign, verify } from "jsonwebtoken"
 import type { NextRequest, NextResponse } from "next/server"
-import prisma from "./prisma"
-import { NextAuthOptions, DefaultSession } from "next-auth"
+import { NextAuthOptions } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
-import bcrypt from "bcryptjs"
+import { getServerSession } from "next-auth/next"
+import { prisma } from "./prisma"
+import { User } from "@prisma/client"
+import { PrismaAdapter } from "@auth/prisma-adapter"
 
 declare module "next-auth" {
-  interface Session extends DefaultSession {
-    user: {
-      id: string
-      email: string
-      name: string | null
-      image: string | null
-    } & DefaultSession["user"]
+  interface User {
+    role?: string
+  }
+  interface Session {
+    user: User & {
+      role?: string
+    }
   }
 }
 
@@ -54,46 +56,15 @@ export function setAuthCookie(response: NextResponse, token: string): void {
   })
 }
 
-// Get current user from request
-export async function getCurrentUser(req: NextRequest) {
-  try {
-    const user = await prisma.user.findUnique({
-      where: { email: req.headers.get("email") as string },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        emailVerified: true,
-        image: true,
-        role: true,
-      },
-    })
-
-    return user
-  } catch (error) {
-    return null
-  }
-}
-
-// Check if user is authenticated
-export async function isAuthenticated(req: NextRequest) {
-  const user = await getCurrentUser(req)
-  return !!user
-}
-
-// Check if user is admin
-export async function isAdmin(req: NextRequest) {
-  const user = await getCurrentUser(req)
-  return user?.role === "ADMIN"
-}
-
-// Check if email is verified
-export async function isEmailVerified(req: NextRequest) {
-  const user = await getCurrentUser(req)
-  return !!user?.emailVerified
-}
-
+// Auth config with credentials provider
 export const authOptions: NextAuthOptions = {
+  adapter: PrismaAdapter(prisma),
+  session: {
+    strategy: "jwt"
+  },
+  pages: {
+    signIn: '/login'
+  },
   providers: [
     CredentialsProvider({
       name: "credentials",
@@ -103,76 +74,110 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          throw new Error("Invalid credentials")
+          return null
         }
 
         const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
-          select: {
-            id: true,
-            email: true,
-            name: true,
-            password: true,
-            emailVerified: true,
-            image: true,
+          where: {
+            email: credentials.email
           }
         })
 
-        if (!user || !user.password) {
-          throw new Error("Invalid credentials")
+        if (!user) {
+          return null
         }
 
-        const isPasswordValid = await bcrypt.compare(
+        if (!user.password) {
+          return null
+        }
+
+        const passwordMatch = await compare(
           credentials.password,
           user.password
         )
 
-        if (!isPasswordValid) {
-          throw new Error("Invalid credentials")
-        }
-
-        if (!user.emailVerified) {
-          throw new Error("Please verify your email before logging in")
+        if (!passwordMatch) {
+          return null
         }
 
         return {
           id: user.id,
           email: user.email,
           name: user.name,
-          image: user.image,
+          role: user.role,
         }
       }
     })
   ],
-  pages: {
-    signIn: "/login",
-    error: "/login",
-  },
   callbacks: {
-    async jwt({ token, user, account }) {
+    // Add role to JWT token
+    async jwt({ token, user }) {
       if (user) {
-        token.id = user.id
-        token.email = user.email
-        token.name = user.name
-        token.picture = user.image
+        return {
+          ...token,
+          role: user.role,
+        }
       }
       return token
     },
+    // Add role to session
     async session({ session, token }) {
-      if (token && session.user) {
-        session.user.id = token.id as string
-        session.user.email = token.email as string
-        session.user.name = token.name as string || null
-        session.user.image = token.picture as string || null
+      return {
+        ...session,
+        user: {
+          ...session.user,
+          role: token.role,
+        }
       }
-      return session
     }
-  },
-  session: {
-    strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 days
-  },
-  secret: process.env.NEXTAUTH_SECRET,
-  debug: process.env.NODE_ENV === "development",
+  }
+}
+
+// Get current session
+export async function getCurrentSession() {
+  return await getServerSession(authOptions)
+}
+
+// Get current user from session
+export async function getCurrentUser() {
+  try {
+    const session = await getCurrentSession()
+
+    if (!session?.user?.email) {
+      return null
+    }
+
+    const user = await prisma.user.findUnique({
+      where: {
+        email: session.user.email,
+      },
+    })
+
+    if (!user) {
+      return null
+    }
+
+    return user
+  } catch {
+    return null
+  }
+}
+
+// Check if user is authenticated
+export async function isAuthenticated() {
+  const session = await getCurrentSession()
+  return !!session?.user
+}
+
+// Check if user is admin
+export async function isAdmin() {
+  const user = await getCurrentUser()
+  return user?.role === "ADMIN"
+}
+
+// Check if email is verified
+export async function isEmailVerified(req: NextRequest) {
+  const user = await getCurrentUser()
+  return !!user?.emailVerified
 }
 

@@ -9,14 +9,17 @@ import { Toaster } from "@/components/ui/toaster"
 import { NavWrapper } from "@/components/nav-wrapper"
 import { Footer } from "@/components/footer"
 
+// Load Inter font
 const inter = Inter({ subsets: ["latin"] })
 
+// App metadata
 export const metadata: Metadata = {
   title: "Badger Sublets - UW-Madison Student Sublet Platform",
   description: "A safe and secure platform for UW-Madison students to sublet apartments",
   generator: 'v0.dev'
 }
 
+// Root layout with Google Maps and providers
 export default function RootLayout({
   children,
 }: Readonly<{

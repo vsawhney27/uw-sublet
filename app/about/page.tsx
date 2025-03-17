@@ -2,13 +2,14 @@
 
 import { GraduationCap, Users, Building, Shield } from "lucide-react"
 
+// About page with mission, features, story, and contact
 export default function About() {
   return (
     <div className="container mx-auto px-4 py-16">
       <h1 className="text-4xl font-bold text-center mb-12">About Badger Sublets</h1>
 
       <div className="max-w-4xl mx-auto">
-        {/* Mission Statement */}
+        {/* Mission */}
         <div className="text-center mb-16">
           <p className="text-xl text-gray-700 leading-relaxed">
             Badger Sublets was created by UW-Madison students for UW-Madison students, 
@@ -16,7 +17,7 @@ export default function About() {
           </p>
         </div>
 
-        {/* Key Features Grid */}
+        {/* Features */}
         <div className="grid md:grid-cols-2 gap-8 mb-16">
           <div className="bg-white p-6 rounded-lg shadow-lg">
             <div className="flex items-center mb-4">
@@ -71,7 +72,7 @@ export default function About() {
           </div>
         </div>
 
-        {/* Origin Story */}
+        {/* Story */}
         <div className="bg-white p-8 rounded-lg shadow-lg mb-16">
           <h2 className="text-2xl font-semibold mb-4">Our Story</h2>
           <p className="text-gray-600 mb-4">
@@ -86,7 +87,7 @@ export default function About() {
           </p>
         </div>
 
-        {/* Contact Section */}
+        {/* Contact */}
         <div className="text-center">
           <h2 className="text-2xl font-semibold mb-4">Get in Touch</h2>
           <p className="text-gray-600">

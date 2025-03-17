@@ -1,6 +1,7 @@
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Card } from "@/components/ui/card"
 
+// FAQ data with questions and answers
 const faqs = [
   {
     question: "What is BadgerSublets?",
@@ -44,6 +45,7 @@ const faqs = [
   }
 ]
 
+// FAQ page with accordion layout
 export default function FAQPage() {
   return (
     <div className="min-h-screen bg-gray-50 py-12">
